@@ -39,14 +39,25 @@ pub trait Handler<P: Provider> {
 pub trait Decodable: Sized {
     type DecodeError;
 
+    // /// Decode the message into a request handler.
+    // ///
+    // /// # Errors
+    // ///
+    // /// Returns an error if the message cannot be decoded.
+    // fn decode<P>(bytes: &[u8]) -> Result<RequestHandler<Self, P>, Self::DecodeError>
+    // where
+    //     P: Provider,
+    //     Self: Handler<P>;
+
     /// Decode the message into a request handler.
     ///
     /// # Errors
     ///
     /// Returns an error if the message cannot be decoded.
-    fn decode<P: Provider>(bytes: &[u8]) -> Result<RequestHandler<Self, P>, Self::DecodeError>
+    fn decode<T, P>(bytes: &[u8]) -> Result<T, Self::DecodeError>
     where
-        Self: Handler<P>;
+        T: Handler<P>,
+        P: Provider;
 }
 
 /// Request-scoped context passed to [`Handler::handle`].
@@ -71,7 +82,7 @@ pub struct Context<'a, P: Provider> {
 /// owner and headers set.
 /// ```
 #[derive(Debug)]
-pub struct RequestHandler<R, P = NoProvider>
+pub struct RequestHandler<R, P>
 where
     R: Handler<P>,
     P: Provider,
@@ -86,7 +97,7 @@ where
     provider: Arc<P>,
 }
 
-pub struct NoProvider;
+// pub struct NoProvider;
 
 impl<R, P> RequestHandler<R, P>
 where
