@@ -50,7 +50,10 @@ pub struct HttpError {
 
 impl From<crate::Error> for HttpError {
     fn from(e: crate::Error) -> Self {
-        Self { status:e.status(), error:e.to_string() }
+        Self {
+            status: e.status(),
+            error: e.to_string(),
+        }
     }
 }
 
