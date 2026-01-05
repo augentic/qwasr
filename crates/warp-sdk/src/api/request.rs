@@ -27,7 +27,21 @@ pub trait Handler<P: Provider>: Sized {
     type Output: Body;
 
     /// The error type returned by the handler.
-    type Error: Error + Send + Sync + 'static;
+    type Error: Error + 'static + Send + Sync;
+
+    fn from_bytes(bytes: &[u8]) -> Result<RequestOnly<Self, P>, Self::Error> {
+        let x = Self::decode(bytes)?;
+        Ok(RequestOnly::new(x))
+    }
+
+    /// Decode the message into a request handler.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be decoded.
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        todo!()
+    }
 
     /// Routes the message to the concrete handler used to process the message.
     fn handle(
@@ -35,20 +49,19 @@ pub trait Handler<P: Provider>: Sized {
     ) -> impl Future<Output = Result<Reply<Self::Output>, Self::Error>> + Send;
 }
 
-/// Trait for messages that can be decoded and built into handlers
-pub trait Decodable: Sized {
-    type DecodeError;
+// /// Trait for messages that can be decoded and built into handlers
+// pub trait Decode: Sized {
+//     type DecodeError: Error + Send + Sync + 'static;
 
-    /// Decode the message into a request handler.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the message cannot be decoded.
-    fn decode(bytes: &[u8]) -> Result<Self, Self::DecodeError>;
-    // where
-    //     Self: Handler<NoProvider>;
-    // P: Provider;
-}
+//     /// Decode the message into a request handler.
+//     ///
+//     /// # Errors
+//     ///
+//     /// Returns an error if the message cannot be decoded.
+//     fn decode(bytes: &[u8]) -> Result<Self, Self::DecodeError> {
+//         todo!()
+//     }
+// }
 
 /// Request-scoped context passed to [`Handler::handle`].
 ///
@@ -200,5 +213,34 @@ where
         R::Error: Send,
     {
         Box::pin(self.handle())
+    }
+}
+
+// ----------------------------------------------------------------------------
+// RequestOnly
+// ----------------------------------------------------------------------------
+
+use std::marker::PhantomData;
+
+pub struct RequestOnly<R: Handler<P>, P: Provider> {
+    request: R,
+    provider: PhantomData<P>,
+}
+
+impl<R: Handler<P>, P: Provider> RequestOnly<R, P> {
+    pub fn new(request: R) -> Self {
+        Self {
+            request,
+            provider: PhantomData,
+        }
+    }
+
+    pub fn provider(self, provider: P) -> RequestHandler<R, P> {
+        RequestHandler {
+            request: self.request,
+            headers: HeaderMap::default(),
+            provider: Arc::new(provider),
+            owner: Arc::<str>::from(""),
+        }
     }
 }
