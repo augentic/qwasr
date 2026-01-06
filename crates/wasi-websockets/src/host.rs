@@ -11,7 +11,7 @@ mod types;
 mod generated {
     #![allow(clippy::trait_duplication_in_bounds)]
 
-    pub use super::resource::WebSocketProxy;
+    pub use super::resource::ServerProxy;
 
     wasmtime::component::bindgen!({
         world: "websockets",
@@ -23,7 +23,7 @@ mod generated {
             "wasi:websockets/types.error" => anyhow::Error,
         },
         with: {
-            "wasi:websockets/store.server": WebSocketProxy,
+            "wasi:websockets/store.server": ServerProxy,
         },
     });
 }
@@ -32,7 +32,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use anyhow::Result;
-use resource::WebSocketServer;
 use server::run_server;
 use store_impl::FutureResult;
 use warp::{Host, Server, State};
@@ -84,7 +83,7 @@ pub struct WasiWebSocketsCtxView<'a> {
 }
 
 pub trait WebSocketsCtx: Debug + Send + Sync + 'static {
-    fn serve(&self) -> FutureResult<Arc<dyn WebSocketServer>>;
+    fn serve(&self) -> FutureResult<Arc<dyn resource::Server>>;
 }
 
 impl generated_types::Host for WasiWebSocketsCtxView<'_> {

@@ -24,12 +24,11 @@ jit = ["wasmtime/cranelift"]
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow.workspace = true
 clap = { version = "4.5.54", features = ["derive"] }
-credibil-otel.workspace = true
 futures.workspace = true
 runtime-macro.workspace = true
 serde.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["macros"] }
+warp-otel.workspace = true
 wasmtime = { workspace = true, features = ["runtime"] }
 wasmtime-wasi.workspace = true
-

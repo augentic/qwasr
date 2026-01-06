@@ -4,8 +4,8 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
-use credibil_otel::Telemetry;
 use tracing::instrument;
+use warp_otel::Telemetry;
 use wasmtime::component::{Component, InstancePre, Linker};
 use wasmtime::{Config, Engine};
 use wasmtime_wasi::WasiView;
