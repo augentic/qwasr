@@ -819,7 +819,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1082,7 +1082,7 @@ dependencies = [
 
 [[package]]
 name = "guest-macro"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2390,7 +2390,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-macro"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3349,7 +3349,7 @@ dependencies = [
 
 [[package]]
 name = "warp"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -3365,7 +3365,7 @@ dependencies = [
 
 [[package]]
 name = "warp-otel"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "http",
@@ -3381,7 +3381,7 @@ dependencies = [
 
 [[package]]
 name = "warp-sdk"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3412,7 +3412,7 @@ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
 name = "wasi-blobstore"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3428,7 +3428,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-config"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "tracing",
@@ -3440,7 +3440,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-http"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -3470,7 +3470,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-identity"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "fromenv",
@@ -3487,7 +3487,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-keyvalue"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3505,7 +3505,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-messaging"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "futures",
@@ -3523,7 +3523,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-otel"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -3546,7 +3546,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-otel-attr"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3555,7 +3555,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-sql"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "base64ct",
@@ -3574,7 +3574,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-vault"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "futures",
@@ -3589,7 +3589,7 @@ dependencies = [
 
 [[package]]
 name = "wasi-websockets"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "futures",
