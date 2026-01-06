@@ -44,7 +44,7 @@ credibil-encoding = { version = "0.6.0", registry = "credibil" }
 http-body.workspace = true
 http-body-util.workspace = true
 percent-encoding = "2.3.2"
-rkyv = "0.8.12"
+rkyv = "0.8.13"
 serde.workspace = true
 serde_json.workspace = true
 tower = "0.5.2"

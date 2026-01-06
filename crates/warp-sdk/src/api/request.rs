@@ -1,8 +1,18 @@
 //! # Request Handler API
 //!
-//! This module uses the [typestate pattern](https://cliffle.com/blog/rust-typestate/) to ensure
-//! requests are properly configured at compile time. The type system prevents you from executing
-//! a request without first setting all required components (owner, provider, and request).
+//! This module provides a type-safe API for handling requests using the
+//! [typestate pattern](https://cliffle.com/blog/rust-typestate/).
+//!
+//! ## Core Types
+//!
+//! - [`Handler`]: Trait implemented by request types to process requests and produce [`Reply`]
+//! - [`RequestHandler`]: Type-state builder for configuring and executing requests
+//! - [`Context`]: Request-scoped context passed to handlers
+//!
+//! ## Typestate Pattern
+//!
+//! The type system ensures requests are properly configured at compile time,
+//! preventing execution without required components (owner, provider, request).
 //!
 //! ### Valid State Transitions
 //!
@@ -14,22 +24,20 @@
 //!   → .handle().await  → Result<Reply<R::Output>, R::Error>
 //! ```
 //!
-//! You can set these in any order (except `.handle()` which must be last), and you can
-//! add `.headers()` at any point in the chain.
+//! Methods can be called in any order (except `.handle()` which must be last).
+//! The `.headers()` method can be called at any point in the chain.
 //!
+//! ## Usage Examples
 //!
-//! ### Example: From Raw Request (Recommended)
+//! ### Example: From raw input (Recommended)
 //!
-//! The [`Client`] provides a more convenient API that sets owner and provider upfront:
+//! The [`Handler::handler()`] method provides a convenient API for a 'oneshot'
+//! builder pattern:
 //!
 //! ```rust,ignore
-//! use warp_sdk::Client;
-//!
-//! // Create a client with owner and provider
-//! let client = Client::new("alice").provider(my_provider);
-//!
+//! 
 //! // Simple request - await directly (IntoFuture)
-//! let response = R9kRequest::handler(bytes)?
+//! let response = MyRequest::handler(bytes)?
 //!     .owner("alice")
 //!     .provider(my_provider)
 //!     .await?;
@@ -83,10 +91,11 @@
 //!     .await?;
 //! ```
 //!
-//! ### Compile-Time Safety
+//! ## Compile-Time Safety
 //!
 //! The typestate pattern ensures these errors are caught at compile time:
 //! ```rust,compile_fail,ignore
+//! 
 //! // ❌ Cannot handle without all required fields
 //! RequestHandler::new().handle().await?;  // Won't compile!
 //!
