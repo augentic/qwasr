@@ -38,5 +38,5 @@ use syn::parse_macro_input;
 #[proc_macro]
 pub fn guest(input: TokenStream) -> TokenStream {
     let config = parse_macro_input!(input as guest::Config);
-    guest::expand(config).into()
+    guest::expand(&config).into()
 }

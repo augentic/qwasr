@@ -6,9 +6,9 @@ use regex::Regex;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{Ident, LitStr, Path, Result, Token};
+use syn::{Error, Ident, LitStr, Path, Result, Token};
 
-use crate::guest::method_name;
+use crate::guest::{Config, method_name};
 
 static PARAMS_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\{([A-Za-z_][A-Za-z0-9_]*)\}").expect("should compile"));
@@ -52,19 +52,19 @@ impl Parse for Route {
             match field.into_value() {
                 Opt::Method(m) => {
                     if method.is_some() {
-                        return Err(syn::Error::new(m.span(), "cannot specify second method"));
+                        return Err(Error::new(m.span(), "cannot specify second method"));
                     }
                     method = Some(m);
                 }
                 Opt::Request(r) => {
                     if request.is_some() {
-                        return Err(syn::Error::new(r.span(), "cannot specify second request"));
+                        return Err(Error::new(r.span(), "cannot specify second request"));
                     }
                     request = Some(r);
                 }
                 Opt::Reply(r) => {
                     if reply.is_some() {
-                        return Err(syn::Error::new(r.span(), "cannot specify second reply"));
+                        return Err(Error::new(r.span(), "cannot specify second reply"));
                     }
                     reply = Some(r);
                 }
@@ -77,7 +77,7 @@ impl Parse for Route {
             match method_str.as_str() {
                 "get" | "post" => format_ident!("{method_str}"),
                 _ => {
-                    return Err(syn::Error::new(
+                    return Err(Error::new(
                         method.span(),
                         "unsupported http method; expected `get` or `post`",
                     ));
@@ -88,10 +88,10 @@ impl Parse for Route {
         };
 
         let Some(request) = request else {
-            return Err(syn::Error::new(path.span(), "route is missing `request`"));
+            return Err(Error::new(path.span(), "route is missing `request`"));
         };
         let Some(reply) = reply else {
-            return Err(syn::Error::new(path.span(), "route is missing `reply`"));
+            return Err(Error::new(path.span(), "route is missing `reply`"));
         };
 
         // derived values
@@ -150,14 +150,15 @@ fn extract_params(path: &LitStr) -> Vec<Ident> {
         .collect()
 }
 
-pub fn expand(http: &Http, client: &TokenStream) -> TokenStream {
+pub fn expand(http: &Http, config: &Config) -> TokenStream {
     let routes = http.routes.iter().map(expand_route);
-    let handlers = http.routes.iter().map(|r| expand_handler(r, client));
+    let handlers = http.routes.iter().map(|r| expand_handler(r, config));
 
     quote! {
         mod http {
             use warp_sdk::api::{HttpResult, Reply};
             use warp_sdk::{axum, wasi_http, wasi_otel, wasip3};
+            use warp_sdk::Handler;
 
             use super::*;
 
@@ -190,15 +191,17 @@ fn expand_route(route: &Route) -> TokenStream {
     }
 }
 
-fn expand_handler(route: &Route, client: &TokenStream) -> TokenStream {
+fn expand_handler(route: &Route, config: &Config) -> TokenStream {
     let handler = &route.handler;
     let request = &route.request;
     let reply = &route.reply;
     let params = &route.params;
+    let owner = &config.owner;
+    let provider = &config.provider;
 
     // generate handler function name and signature
     let handler_fn = if route.method == "get" {
-        let param_args = if params.is_empty() {
+        let args = if params.is_empty() {
             quote! {}
         } else if params.len() == 1 {
             quote! { axum::extract::Path(#(#params),*): axum::extract::Path<String> }
@@ -207,36 +210,34 @@ fn expand_handler(route: &Route, client: &TokenStream) -> TokenStream {
             for _ in 0..params.len() {
                 param_types.push(format_ident!("String"));
             }
-
             quote! { axum::extract::Path((#(#params),*)): axum::extract::Path<(#(#param_types),*)> }
         };
-
-        quote! { #handler(#param_args) }
+        quote! { #handler(#args) }
     } else {
         quote! { #handler(body: bytes::Bytes) }
     };
 
     // generate request parameter and type
-    let request = if route.method == "get" {
+    let input = if route.method == "get" {
         if params.is_empty() {
-            quote! { #request }
-            //  quote! { #request::try_from(()).context("parsing request")? }
+            quote! { () }
         } else if params.len() == 1 {
-            quote! { #request::try_from(#(#params),*).context("parsing request")? }
+            quote! { #(#params),* }
         } else {
-            quote! { #request::try_from((#(#params),*)).context("parsing request")? }
+            quote! { (#(#params),*) }
         }
     } else {
-        quote! { #request::try_from(body.as_ref()).context("parsing request")? }
+        quote! { body.to_vec() }
     };
 
     quote! {
         #[wasi_otel::instrument]
         async fn #handler_fn -> HttpResult<Reply<#reply>> {
-            let client = #client;
-            let request = #request;
-            let reply = client.request(request).await.context("processing request")?;
-            Ok(reply)
+            #request::handler(#input)?
+                .provider(#provider::new())
+                .owner(#owner)
+                .await
+                .map_err(Into::into)
         }
     }
 }

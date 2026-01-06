@@ -108,15 +108,9 @@ impl Parse for Opt {
     }
 }
 
-pub fn expand(config: Config) -> TokenStream {
-    let owner = config.owner;
-    let provider = config.provider;
-    let client = quote! {
-        Client::new(#owner).provider(#provider::new())
-    };
-
-    let http_mod = config.http.as_ref().map(|h| http::expand(h, &client));
-    let messaging_mod = config.messaging.as_ref().map(|m| messaging::expand(m, &client));
+pub fn expand(config: &Config) -> TokenStream {
+    let http_mod = config.http.as_ref().map(|h| http::expand(h, config));
+    let messaging_mod = config.messaging.as_ref().map(|m| messaging::expand(m, config));
 
     quote! {
         #[cfg(target_arch = "wasm32")]
@@ -142,7 +136,7 @@ pub fn method_name(path: &Path) -> Ident {
     let ident_str = ident.ident.to_string();
     let new_word =
         ident_str[1..].chars().position(char::is_uppercase).unwrap_or(ident_str.len() - 1);
-    let method_name = &ident_str[0..=new_word];
+    let method_name = &ident_str[0..=new_word].to_lowercase();
 
     format_ident!("{method_name}")
 }

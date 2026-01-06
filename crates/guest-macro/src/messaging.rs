@@ -5,7 +5,7 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{Ident, LitStr, Path, Result, Token};
 
-use crate::guest::method_name;
+use crate::guest::{Config, method_name};
 
 pub struct Messaging {
     pub topics: Vec<Topic>,
@@ -84,14 +84,15 @@ impl Parse for Opt {
     }
 }
 
-pub fn expand(messaging: &Messaging, client: &TokenStream) -> TokenStream {
+pub fn expand(messaging: &Messaging, config: &Config) -> TokenStream {
     let topic_arms = messaging.topics.iter().map(expand_topic);
-    let processors = messaging.topics.iter().map(|t| expand_handler(t, client));
+    let processors = messaging.topics.iter().map(|t| expand_handler(t, config));
 
     quote! {
         mod messaging {
             use warp_sdk::wasi_messaging::types::{Error, Message};
             use warp_sdk::{wasi_messaging, wasi_otel};
+            use warp_sdk::Handler;
 
             use super::*;
 
@@ -131,21 +132,25 @@ fn expand_topic(topic: &Topic) -> TokenStream {
     let handler = &topic.handler;
 
     quote! {
-        t if t.contains(#pattern) => #handler(&message.data()).await,
+        t if t.contains(#pattern) => #handler(message.data()).await,
     }
 }
 
-fn expand_handler(topic: &Topic, client: &TokenStream) -> TokenStream {
+fn expand_handler(topic: &Topic, config: &Config) -> TokenStream {
     let handler_fn = &topic.handler;
     let message = &topic.message;
+    let owner = &config.owner;
+    let provider = &config.provider;
 
     quote! {
         #[wasi_otel::instrument]
-        async fn #handler_fn(message: &[u8]) -> Result<()> {
-            let client = #client;
-            let request = #message::try_from(message).context("parsing message")?;
-            client.request(request).await?;
-            Ok(())
+        async fn #handler_fn(payload: Vec<u8>) -> Result<()> {
+             #message::handler(payload)?
+                 .provider(#provider::new())
+                 .owner(#owner)
+                 .await
+                 .map(|_| ())
+                 .map_err(Into::into)
         }
     }
 }
