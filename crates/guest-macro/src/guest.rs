@@ -152,17 +152,17 @@ mod tests {
         // one letter
         let path = Path::from(format_ident!("H"));
         let name = method_name(&path);
-        assert_eq!(name, format_ident!("H"));
+        assert_eq!(name, format_ident!("h"));
 
         // one word
         let path = Path::from(format_ident!("Hello"));
         let name = method_name(&path);
-        assert_eq!(name, format_ident!("Hello"));
+        assert_eq!(name, format_ident!("hello"));
 
         // two words
         let path = Path::from(format_ident!("HelloWorld"));
         let name = method_name(&path);
-        assert_eq!(name, format_ident!("Hello"));
+        assert_eq!(name, format_ident!("hello"));
     }
 
     #[test]
