@@ -229,6 +229,22 @@ impl RequestHandler<NoRequest, NoOwner, NoProvider> {
 }
 
 // ----------------------------------------------
+// Set Owner
+// ----------------------------------------------
+impl<R, P> RequestHandler<R, NoOwner, P> {
+    /// Set the owner (transitions typestate).
+    #[must_use]
+    pub fn owner(self, owner: impl Into<String>) -> RequestHandler<R, OwnerSet, P> {
+        RequestHandler {
+            request: self.request,
+            headers: self.headers,
+            owner: OwnerSet(Arc::from(owner.into())),
+            provider: self.provider,
+        }
+    }
+}
+
+// ----------------------------------------------
 // Set Provider
 // ----------------------------------------------
 impl<R, O> RequestHandler<R, O, NoProvider> {
@@ -257,22 +273,6 @@ impl<O, P> RequestHandler<NoRequest, O, P> {
             request: RequestSet(request, PhantomData),
             headers: self.headers,
             owner: self.owner,
-            provider: self.provider,
-        }
-    }
-}
-
-// ----------------------------------------------
-// Set Owner
-// ----------------------------------------------
-impl<R, P> RequestHandler<R, NoOwner, P> {
-    /// Set the owner (transitions typestate).
-    #[must_use]
-    pub fn owner(self, owner: impl Into<String>) -> RequestHandler<R, OwnerSet, P> {
-        RequestHandler {
-            request: self.request,
-            headers: self.headers,
-            owner: OwnerSet(Arc::from(owner.into())),
             provider: self.provider,
         }
     }
