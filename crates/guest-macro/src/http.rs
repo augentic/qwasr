@@ -202,7 +202,7 @@ fn expand_handler(route: &Route, config: &Config) -> TokenStream {
     // generate handler function name and signature
     let handler_fn = if route.method == "get" {
         let args = if params.is_empty() {
-            quote! {}
+            quote! { axum::extract::RawQuery(query): axum::extract::RawQuery }
         } else if params.len() == 1 {
             quote! { axum::extract::Path(#(#params),*): axum::extract::Path<String> }
         } else {
@@ -220,7 +220,7 @@ fn expand_handler(route: &Route, config: &Config) -> TokenStream {
     // generate request parameter and type
     let input = if route.method == "get" {
         if params.is_empty() {
-            quote! { () }
+            quote! { query }
         } else if params.len() == 1 {
             quote! { #(#params),* }
         } else {
