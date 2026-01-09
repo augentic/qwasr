@@ -5,6 +5,7 @@ use quote::{format_ident, quote};
 use regex::Regex;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::{Error, Ident, LitStr, Path, Result, Token};
 
 use crate::guest::{Config, handler_name};
@@ -30,6 +31,8 @@ pub struct Route {
     params: Vec<Ident>,
     handler: Handler,
     function: Ident,
+    query: bool,
+    body: bool,
 }
 
 impl Parse for Route {
@@ -38,6 +41,8 @@ impl Parse for Route {
         input.parse::<Token![:]>()?;
 
         let mut handler: Option<Handler> = None;
+        let mut query: Option<bool> = None;
+        let mut body: Option<bool> = None;
 
         let fields = Punctuated::<Opt, Token![|]>::parse_separated_nonempty(input)?;
 
@@ -48,6 +53,18 @@ impl Parse for Route {
                         return Err(Error::new(h.method.span(), "cannot specify second handler"));
                     }
                     handler = Some(h);
+                }
+                Opt::Query(q) => {
+                    if query.is_some() {
+                        return Err(Error::new(q.span(), "query is specified more than once"));
+                    }
+                    query = Some(q);
+                }
+                Opt::Body(b) => {
+                    if body.is_some() {
+                        return Err(Error::new(b.span(), "body is specified more than once"));
+                    }
+                    body = Some(b);
                 }
             }
         }
@@ -66,6 +83,8 @@ impl Parse for Route {
             params,
             handler,
             function,
+            query: query.unwrap_or_default(),
+            body: body.unwrap_or_default(),
         })
     }
 }
@@ -75,34 +94,17 @@ struct Handler {
     method: Ident,
     request: Path,
     reply: Path,
-    with_body: bool,
-    with_query: bool,
 }
 
 // Parse the handler method in the form of `method(request, reply)`.
 impl Parse for Handler {
     fn parse(input: ParseStream) -> Result<Self> {
         let method: Ident = input.parse()?;
-        let mut with_body = false;
-        let mut with_query = false;
 
         let list;
         syn::parenthesized!(list in input);
 
-        // parse request
         let request: Path = list.parse()?;
-
-        // parse `with_body` or `with_query`
-        let l = list.lookahead1();
-        if l.peek(kw::with_body) {
-            list.parse::<kw::with_body>()?;
-            with_body = true;
-        } else if l.peek(kw::with_query) {
-            list.parse::<kw::with_query>()?;
-            with_query = true;
-        }
-
-        // parse reply
         list.parse::<Token![,]>()?;
         let reply: Path = list.parse()?;
 
@@ -110,8 +112,6 @@ impl Parse for Handler {
             method,
             request,
             reply,
-            with_body,
-            with_query,
         })
     }
 }
@@ -119,12 +119,14 @@ impl Parse for Handler {
 mod kw {
     syn::custom_keyword!(get);
     syn::custom_keyword!(post);
-    syn::custom_keyword!(with_query);
-    syn::custom_keyword!(with_body);
+    syn::custom_keyword!(query);
+    syn::custom_keyword!(body);
 }
 
 enum Opt {
     Handler(Handler),
+    Query(bool),
+    Body(bool),
 }
 
 impl Parse for Opt {
@@ -132,6 +134,12 @@ impl Parse for Opt {
         let l = input.lookahead1();
         if l.peek(kw::get) || l.peek(kw::post) {
             Ok(Self::Handler(input.parse::<Handler>()?))
+        } else if l.peek(kw::query) {
+            input.parse::<kw::query>()?;
+            Ok(Self::Query(true))
+        } else if l.peek(kw::body) {
+            input.parse::<kw::body>()?;
+            Ok(Self::Body(true))
         } else {
             Err(l.error())
         }
@@ -188,19 +196,17 @@ fn expand_route(route: &Route) -> TokenStream {
 }
 
 fn expand_handler(route: &Route, config: &Config) -> TokenStream {
-    let handler = &route.handler;
+    let function = &route.function;
+    let method = &route.handler.method;
+    let request = &route.handler.request;
+    let reply = &route.handler.reply;
     let params = &route.params;
     let owner = &config.owner;
-    let provider = &config.provider;
-
-    let method = &handler.method;
-    let request = &handler.request;
-    let reply = &handler.reply;
-    let function = &route.function;
+    let provider = &config.provider; // generate handler function name and signature
 
     let handler_fn = if method == "get" {
         let args = if params.is_empty() {
-            if handler.with_query {
+            if route.query {
                 quote! { axum::extract::RawQuery(query): axum::extract::RawQuery }
             } else {
                 quote! {}
@@ -217,7 +223,7 @@ fn expand_handler(route: &Route, config: &Config) -> TokenStream {
 
         quote! { #function(#args) }
     } else {
-        let args = if handler.with_body {
+        let args = if route.body {
             quote! { body: bytes::Bytes }
         } else {
             quote! {}
@@ -229,7 +235,7 @@ fn expand_handler(route: &Route, config: &Config) -> TokenStream {
     // generate request parameter and type
     let input = if method == "get" {
         if params.is_empty() {
-            if handler.with_query {
+            if route.query {
                 quote! { query }
             } else {
                 quote! { () }
@@ -240,7 +246,7 @@ fn expand_handler(route: &Route, config: &Config) -> TokenStream {
             quote! { (#(#params),*) }
         }
     } else {
-        if handler.with_body {
+        if route.body {
             quote! { body.to_vec() }
         } else {
             quote! { () }
