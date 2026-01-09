@@ -3,11 +3,11 @@ use std::env;
 guest_macro::guest!({
     owner: "at",
     http: [
-        "/jobs/detector": get(DetectionRequest, DetectionReply) | query,
-        "/god-mode/set-trip/{vehicle_id}/{trip_id}": post(SetTripRequest,SetTripReply) | body,
+        "/jobs/detector": get(DetectionRequest, DetectionReply) | with_query,
+        "/god-mode/set-trip/{vehicle_id}/{trip_id}": post(SetTripRequest, SetTripReply) | with_body,
     ],
     messaging: [
-        format!("{env}-realtime-r9k.v1", env = env::var("ENV").unwrap_or("dev".to_string())): (R9kMessage),
+        format!("{env}-realtime-r9k.v1", env = env::var("ENV").unwrap_or("dev".to_string())): R9kMessage,
     ],
     capabilities: [
         HttpRequest,

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
+// use syn::spanned::Spanned;
 use syn::{Ident, LitStr, Path, Result, Token};
 
 use crate::guest::{Config, handler_name};
@@ -31,28 +31,7 @@ impl Parse for Topic {
         let pattern: LitStr = input.parse()?;
         input.parse::<Token![:]>()?;
 
-        let mut message: Option<Path> = None;
-
-        let settings;
-        syn::braced!(settings in input);
-        let fields = Punctuated::<Opt, Token![,]>::parse_terminated(&settings)?;
-
-        for field in fields.into_pairs() {
-            match field.into_value() {
-                Opt::Message(m) => {
-                    if message.is_some() {
-                        return Err(syn::Error::new(m.span(), "cannot specify second message"));
-                    }
-                    message = Some(m);
-                }
-            }
-        }
-
-        let Some(message) = message else {
-            return Err(syn::Error::new(pattern.span(), "topic missing `message`"));
-        };
-
-        //
+        let message: Path = input.parse()?;
         let handler = handler_name(&pattern);
 
         Ok(Self {
@@ -60,27 +39,6 @@ impl Parse for Topic {
             message,
             handler,
         })
-    }
-}
-
-mod kw {
-    syn::custom_keyword!(message);
-}
-
-enum Opt {
-    Message(Path),
-}
-
-impl Parse for Opt {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let l = input.lookahead1();
-        if l.peek(kw::message) {
-            input.parse::<kw::message>()?;
-            input.parse::<Token![:]>()?;
-            Ok(Self::Message(input.parse::<Path>()?))
-        } else {
-            Err(l.error())
-        }
     }
 }
 
