@@ -6,7 +6,9 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::Result;
+#[cfg(target_arch = "wasm32")]
+use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use http::{Request, Response};
 use http_body::Body;
@@ -14,10 +16,11 @@ use http_body::Body;
 /// The `Config` trait is used by implementers to provide configuration from
 /// WASI-guest to dependent crates.
 pub trait Config: Send + Sync {
+    /// Get configuration setting.
     #[cfg(not(target_arch = "wasm32"))]
     fn get(&self, key: &str) -> impl Future<Output = Result<String>> + Send;
 
-    /// Request configuration setting.
+    /// Get configuration setting.
     #[cfg(target_arch = "wasm32")]
     fn get(&self, key: &str) -> impl Future<Output = Result<String>> + Send {
         async move {
@@ -29,9 +32,13 @@ pub trait Config: Send + Sync {
 
 /// The `HttpRequest` trait defines the behavior for fetching data from a source.
 pub trait HttpRequest: Send + Sync {
+    /// Make outbound HTTP request.
     #[cfg(not(target_arch = "wasm32"))]
-    fn fetch<T>(&self, request: Request<T>)
-    -> impl Future<Output = Result<Response<Bytes>>> + Send;
+    fn fetch<T>(&self, request: Request<T>) -> impl Future<Output = Result<Response<Bytes>>> + Send
+    where
+        T: Body + Any + Send,
+        T::Data: Into<Vec<u8>>,
+        T::Error: Into<Box<dyn Error + Send + Sync + 'static>>;
 
     /// Make outbound HTTP request.
     #[cfg(target_arch = "wasm32")]
@@ -64,10 +71,11 @@ impl Message {
 
 /// The `Publisher` trait defines the message publishing behavior.
 pub trait Publisher: Send + Sync {
+    /// Publish (send) a message to a topic.
     #[cfg(not(target_arch = "wasm32"))]
     fn send(&self, topic: &str, message: &Message) -> impl Future<Output = Result<()>> + Send;
 
-    /// Make outbound HTTP request.
+    /// Publish (send) a message to a topic.
     #[cfg(target_arch = "wasm32")]
     fn send(&self, topic: &str, message: &Message) -> impl Future<Output = Result<()>> + Send {
         use wasi_messaging::producer;
@@ -85,17 +93,21 @@ pub trait Publisher: Send + Sync {
 
 /// The `StateStore` trait defines the behavior storing and retrieving train state.
 pub trait StateStore: Send + Sync {
+    /// Retrieve a previously stored value from the state store.
     #[cfg(not(target_arch = "wasm32"))]
     fn get(&self, key: &str) -> impl Future<Output = Result<Option<Vec<u8>>>> + Send;
 
+    /// Store a value in the state store.
     #[cfg(not(target_arch = "wasm32"))]
     fn set(
         &self, key: &str, value: &[u8], ttl_secs: Option<u64>,
     ) -> impl Future<Output = Result<Option<Vec<u8>>>> + Send;
 
+    /// Delete a value from the state store.
     #[cfg(not(target_arch = "wasm32"))]
     fn delete(&self, key: &str) -> impl Future<Output = Result<()>> + Send;
 
+    /// Retrieve a previously stored value from the state store.
     #[cfg(target_arch = "wasm32")]
     fn get(&self, key: &str) -> impl Future<Output = Result<Option<Vec<u8>>>> + Send {
         async move {
@@ -104,6 +116,7 @@ pub trait StateStore: Send + Sync {
         }
     }
 
+    /// Store a value in the state store.
     #[cfg(target_arch = "wasm32")]
     fn set(
         &self, key: &str, value: &[u8], ttl_secs: Option<u64>,
@@ -114,6 +127,7 @@ pub trait StateStore: Send + Sync {
         }
     }
 
+    /// Delete a value from the state store.
     #[cfg(target_arch = "wasm32")]
     fn delete(&self, key: &str) -> impl Future<Output = Result<()>> + Send {
         async move {
@@ -123,11 +137,13 @@ pub trait StateStore: Send + Sync {
     }
 }
 
+/// The `Identity` trait defines behaviors for interacting with identity providers.
 pub trait Identity: Send + Sync {
+    /// Get an access token for the specified identity.
     #[cfg(not(target_arch = "wasm32"))]
     fn access_token(&self, identity: String) -> impl Future<Output = Result<String>> + Send;
 
-    /// Get the unique identifier for the entity.
+    /// Get an access token for the specified identity.
     #[cfg(target_arch = "wasm32")]
     fn access_token(&self, identity: String) -> impl Future<Output = Result<String>> + Send {
         use wasi_identity::credentials::get_identity;

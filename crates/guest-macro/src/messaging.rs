@@ -2,7 +2,6 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-// use syn::spanned::Spanned;
 use syn::{Ident, LitStr, Path, Result, Token};
 
 use crate::guest::{Config, handler_name};
@@ -57,29 +56,21 @@ pub fn expand(messaging: &Messaging, config: &Config) -> TokenStream {
             pub struct Messaging;
             wasi_messaging::export!(Messaging with_types_in wasi_messaging);
 
+            // Message handler
             impl wasi_messaging::incoming_handler::Guest for Messaging {
                 #[wasi_otel::instrument]
                 async fn handle(message: Message) -> Result<(), Error> {
-                    let topic = message.topic().unwrap_or_default();
-
-                    // check we're processing topics for the correct environment
-                    // FIXME: this should be done in macro body instead of here
-                    let env = std::env::var("ENV").unwrap_or_default();
-                    let Some(topic) = topic.strip_prefix(&format!("{env}-")) else {
-                        return Err(wasi_messaging::types::Error::Other("Incorrect environment".to_string()));
-                    };
-
-                    if let Err(e) = match &topic {
+                    if let Err(e) = match &message.topic().unwrap_or_default() {
                         #(#topic_arms)*
                         _ => return Err(Error::Other("Unhandled topic".to_string())),
                     } {
                         return Err(Error::Other(e.to_string()));
                     }
-
                     Ok(())
                 }
             }
 
+            // Message processors
             #(#processors)*
         }
     }

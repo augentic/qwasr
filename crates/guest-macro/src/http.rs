@@ -20,10 +20,10 @@ impl Parse for Http {
 }
 
 pub struct Route {
-    path: LitStr,
-    params: Vec<Ident>,
-    handler: Handler,
-    function: Ident,
+    pub path: LitStr,
+    pub params: Vec<Ident>,
+    pub handler: Handler,
+    pub function: Ident,
 }
 
 impl Parse for Route {
@@ -64,7 +64,7 @@ impl Parse for Route {
 }
 
 // Contains the HTTP method and the request and reply types.
-struct Handler {
+pub struct Handler {
     method: Ident,
     request: Path,
     reply: Path,

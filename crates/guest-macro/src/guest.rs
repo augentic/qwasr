@@ -4,8 +4,6 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{Error, Ident, LitStr, Result, Token};
 
-use crate::capabilities::{self, Capabilities};
-use crate::environment::{self, Environment};
 use crate::http::{self, Http};
 use crate::messaging::{self, Messaging};
 
@@ -14,8 +12,6 @@ pub struct Config {
     pub provider: Ident,
     pub http: Option<Http>,
     pub messaging: Option<Messaging>,
-    pub capabilities: Option<Capabilities>,
-    pub environment: Option<Environment>,
 }
 
 impl Parse for Config {
@@ -24,8 +20,6 @@ impl Parse for Config {
         let mut provider: Option<Ident> = None;
         let mut http: Option<Http> = None;
         let mut messaging: Option<Messaging> = None;
-        let mut capabilities: Option<Capabilities> = None;
-        let mut environment: Option<Environment> = None;
 
         let settings;
         syn::braced!(settings in input);
@@ -51,12 +45,6 @@ impl Parse for Config {
                 Opt::Messaging(m) => {
                     messaging = Some(m);
                 }
-                Opt::Capabilities(c) => {
-                    capabilities = Some(c);
-                }
-                Opt::Environment(e) => {
-                    environment = Some(e);
-                }
             }
         }
 
@@ -72,8 +60,6 @@ impl Parse for Config {
             provider,
             http,
             messaging,
-            capabilities,
-            environment,
         })
     }
 }
@@ -83,8 +69,6 @@ mod kw {
     syn::custom_keyword!(provider);
     syn::custom_keyword!(http);
     syn::custom_keyword!(messaging);
-    syn::custom_keyword!(capabilities);
-    syn::custom_keyword!(environment);
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -93,8 +77,6 @@ enum Opt {
     Provider(Ident),
     Http(Http),
     Messaging(Messaging),
-    Capabilities(Capabilities),
-    Environment(Environment),
 }
 
 impl Parse for Opt {
@@ -120,18 +102,6 @@ impl Parse for Opt {
             let list;
             syn::bracketed!(list in input);
             Ok(Self::Messaging(list.parse()?))
-        } else if l.peek(kw::capabilities) {
-            input.parse::<kw::capabilities>()?;
-            input.parse::<Token![:]>()?;
-            let list;
-            syn::bracketed!(list in input);
-            Ok(Self::Capabilities(list.parse()?))
-        } else if l.peek(kw::environment) {
-            input.parse::<kw::environment>()?;
-            input.parse::<Token![:]>()?;
-            let list;
-            syn::bracketed!(list in input);
-            Ok(Self::Environment(list.parse()?))
         } else {
             Err(l.error())
         }
@@ -141,8 +111,6 @@ impl Parse for Opt {
 pub fn expand(config: &Config) -> TokenStream {
     let http_mod = config.http.as_ref().map(|h| http::expand(h, config));
     let messaging_mod = config.messaging.as_ref().map(|m| messaging::expand(m, config));
-    let environment_mod = config.environment.as_ref().map(environment::expand);
-    let capabilities_mod = config.capabilities.as_ref().map(capabilities::expand);
 
     quote! {
         #[cfg(target_arch = "wasm32")]
@@ -154,15 +122,12 @@ pub fn expand(config: &Config) -> TokenStream {
 
             #http_mod
             #messaging_mod
-            #environment_mod
-            #capabilities_mod
         }
     }
 }
 
 // Derive a handler method name http path or messaging topic
 pub fn handler_name(path: &LitStr) -> Ident {
-    // format_ident!("{method_name}")
     let path_str = path.value();
     let name = path_str
         .trim_start_matches('/')
@@ -202,16 +167,10 @@ mod tests {
             owner: "at",
             provider: MyProvider,
             http: [
-                "/jobs/detector": {
-                    method: get,
-                    request: DetectionRequest,
-                    reply: DetectionReply
-                }
+                "/jobs/detector": get(DetectionRequest with_query, DetectionReply)
             ],
             messaging: [
-                "realtime-r9k.v1": {
-                    message: R9kMessage
-                }
+                "realtime-r9k.v1": R9kMessage,
             ]
         });
 
@@ -219,8 +178,8 @@ mod tests {
 
         let http = parsed.http.expect("should have http");
         assert_eq!(http.routes.len(), 1);
-        // assert_eq!(http.routes[0].path.value(), "/jobs/detector");
-        // assert!(http.routes[0].params.is_empty());
+        assert_eq!(http.routes[0].path.value(), "/jobs/detector");
+        assert!(http.routes[0].params.is_empty());
 
         let messaging = parsed.messaging.expect("should have messaging");
         assert_eq!(messaging.topics.len(), 1);
@@ -233,19 +192,16 @@ mod tests {
             owner: "at",
             provider: MyProvider,
             http: [
-                "/god-mode/set-trip/{vehicle_id}/{trip_id}": {
-                    method: get,
-                    request: SetTripRequest,
-                    reply: SetTripReply,
-                }
+                "/path/params/{vehicle_id}/{trip_id}": get(SetTripRequest, SetTripReply),
             ]
         });
 
         let parsed: Config = syn::parse2(input).expect("should parse");
         let http = parsed.http.expect("should have http");
+        
         assert_eq!(http.routes.len(), 1);
-        // assert_eq!(http.routes[0].params.len(), 2);
-        // assert_eq!(http.routes[0].params[0].to_string(), "vehicle_id");
-        // assert_eq!(http.routes[0].params[1].to_string(), "trip_id");
+        assert_eq!(http.routes[0].params.len(), 2);
+        assert_eq!(http.routes[0].params[0].to_string(), "vehicle_id");
+        assert_eq!(http.routes[0].params[1].to_string(), "trip_id");
     }
 }

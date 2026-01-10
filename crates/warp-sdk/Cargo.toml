@@ -17,7 +17,6 @@ workspace = true
 anyhow.workspace = true
 axum = { workspace = true, features = ["json", "macros", "query"] }
 bytes.workspace = true
-fromenv.workspace = true
 http.workspace = true
 http-body.workspace = true
 serde.workspace = true
