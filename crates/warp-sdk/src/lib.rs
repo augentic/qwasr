@@ -16,7 +16,7 @@ pub use crate::api::*;
 pub use crate::capabilities::*;
 pub use crate::error::*;
 
-/// Checks required environment variables are set, panicking if any are 
+/// Checks required environment variables are set, panicking if any are
 /// missing.
 ///
 /// # Example
