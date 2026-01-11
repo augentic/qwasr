@@ -36,10 +36,10 @@ use std::sync::Arc;
 use anyhow::Result;
 use bytes::Bytes;
 pub use resource::*;
-pub use yetti::FutureResult;
-use yetti::{Host, Server, State};
 use wasmtime::component::{HasData, Linker, ResourceTable};
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
+pub use yetti::FutureResult;
+use yetti::{Host, Server, State};
 
 pub use self::default_impl::BlobstoreDefault;
 pub use self::generated::wasi::blobstore::container::{ContainerMetadata, ObjectMetadata};
@@ -69,6 +69,15 @@ where
 
 impl<S> Server<S> for WasiBlobstore where S: State {}
 
+/// A trait which provides internal WASI Blobstore state.
+///
+/// This is implemented by the `T` in `Linker<T>` — a single type shared across
+/// all WASI components for the runtime build.
+pub trait WasiBlobstoreView: Send {
+    /// Return a [`WasiBlobstoreCtxView`] from mutable reference to self.
+    fn blobstore(&mut self) -> WasiBlobstoreCtxView<'_>;
+}
+
 /// A trait which provides internal WASI Blobstore context.
 ///
 /// This is implemented by the resource-specific provider of Blobstore
@@ -94,15 +103,6 @@ pub struct WasiBlobstoreCtxView<'a> {
 
     /// Mutable reference to table used to manage resources.
     pub table: &'a mut ResourceTable,
-}
-
-/// A trait which provides internal WASI Blobstore state.
-///
-/// This is implemented by the `T` in `Linker<T>` — a single type shared across
-/// all WASI components for the runtime build.
-pub trait WasiBlobstoreView: Send {
-    /// Return a [`WasiBlobstoreCtxView`] from mutable reference to self.
-    fn blobstore(&mut self) -> WasiBlobstoreCtxView<'_>;
 }
 
 #[macro_export]
