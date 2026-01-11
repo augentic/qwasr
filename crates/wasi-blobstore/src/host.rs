@@ -39,7 +39,7 @@ pub use resource::*;
 use wasmtime::component::{HasData, Linker, ResourceTable};
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
 pub use yetti::FutureResult;
-use yetti::{ Host, Server, State};
+use yetti::{Host, Server, State};
 
 pub use self::default_impl::BlobstoreDefault;
 pub use self::generated::wasi::blobstore::container::{ContainerMetadata, ObjectMetadata};

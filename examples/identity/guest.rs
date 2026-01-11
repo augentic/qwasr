@@ -18,11 +18,11 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::{Value, json};
 use tracing::Level;
-use yetti_sdk::HttpResult;
 use wasi_identity::credentials::get_identity;
 use wasip3::exports::http::handler::Guest;
 use wasip3::http::types::{ErrorCode, Request, Response};
 use wit_bindgen::block_on;
+use yetti_sdk::HttpResult;
 
 const SCOPE: &str = "https://management.azure.com/.default";
 

@@ -35,10 +35,10 @@ use http::header::{CACHE_CONTROL, IF_NONE_MATCH};
 use http_body_util::{Empty, Full};
 use serde_json::{Value, json};
 use tracing::Level;
-use yetti_sdk::HttpResult;
 use wasi_http::CacheOptions;
 use wasip3::exports::http::handler::Guest;
 use wasip3::http::types::{ErrorCode, Request, Response};
+use yetti_sdk::HttpResult;
 
 struct HttpGuest;
 wasip3::http::proxy::export!(HttpGuest);

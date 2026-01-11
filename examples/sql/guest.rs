@@ -32,11 +32,11 @@ use axum::{Json, Router};
 use bytes::Bytes;
 use serde_json::{Value, json};
 use tracing::Level;
-use yetti_sdk::HttpResult;
 use wasi_sql::types::{Connection, DataType, FormattedValue, Statement};
 use wasi_sql::{into_json, readwrite};
 use wasip3::exports::http::handler::Guest;
 use wasip3::http::types::{ErrorCode, Request, Response};
+use yetti_sdk::HttpResult;
 
 struct Http;
 wasip3::http::proxy::export!(Http);

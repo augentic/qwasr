@@ -4,7 +4,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{Error, Ident, LitStr, Path, Result, Token};
 
-use crate::guest::{handler_name, Config};
+use crate::guest::{Config, handler_name};
 
 pub struct Http {
     pub routes: Vec<Route>,

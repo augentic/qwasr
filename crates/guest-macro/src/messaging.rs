@@ -4,7 +4,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{Ident, LitStr, Path, Result, Token};
 
-use crate::guest::{handler_name, Config};
+use crate::guest::{Config, handler_name};
 
 pub struct Messaging {
     pub topics: Vec<Topic>,

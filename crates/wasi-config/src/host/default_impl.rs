@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use tracing::instrument;
-use yetti::Backend;
 use wasmtime_wasi_config::WasiConfigVariables;
+use yetti::Backend;
 
 use crate::WasiConfigCtx;
 

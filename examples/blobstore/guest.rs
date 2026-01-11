@@ -21,11 +21,11 @@ use axum::{Json, Router};
 use bytes::Bytes;
 use serde_json::Value;
 use tracing::Level;
+use wasip3::exports::http::handler::Guest;
+use wasip3::http::types::{ErrorCode, Request, Response};
 use yetti_sdk::HttpResult;
 use yetti_wasi_blobstore::blobstore;
 use yetti_wasi_blobstore::types::{IncomingValue, OutgoingValue};
-use wasip3::exports::http::handler::Guest;
-use wasip3::http::types::{ErrorCode, Request, Response};
 
 struct Http;
 wasip3::http::proxy::export!(Http);

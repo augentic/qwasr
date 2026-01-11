@@ -29,9 +29,9 @@ use opentelemetry::{KeyValue, global};
 use serde_json::{Value, json};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::Level;
-use yetti_sdk::HttpResult;
 use wasip3::exports::http::handler::Guest;
 use wasip3::http::types::{ErrorCode, Request, Response};
+use yetti_sdk::HttpResult;
 
 struct Http;
 wasip3::http::proxy::export!(Http);
