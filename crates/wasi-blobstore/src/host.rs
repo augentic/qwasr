@@ -78,6 +78,15 @@ pub trait WasiBlobstoreView: Send {
     fn blobstore(&mut self) -> WasiBlobstoreCtxView<'_>;
 }
 
+/// View into [`WasiBlobstoreCtx`] implementation and [`ResourceTable`].
+pub struct WasiBlobstoreCtxView<'a> {
+    /// Mutable reference to the WASI Blobstore context.
+    pub ctx: &'a mut dyn WasiBlobstoreCtx,
+
+    /// Mutable reference to table used to manage resources.
+    pub table: &'a mut ResourceTable,
+}
+
 /// A trait which provides internal WASI Blobstore context.
 ///
 /// This is implemented by the resource-specific provider of Blobstore
@@ -94,15 +103,6 @@ pub trait WasiBlobstoreCtx: Debug + Send + Sync + 'static {
 
     /// Check if a container exists.
     fn container_exists(&self, name: String) -> FutureResult<bool>;
-}
-
-/// View into [`WasiBlobstoreCtx`] implementation and [`ResourceTable`].
-pub struct WasiBlobstoreCtxView<'a> {
-    /// Mutable reference to the WASI Blobstore context.
-    pub ctx: &'a mut dyn WasiBlobstoreCtx,
-
-    /// Mutable reference to table used to manage resources.
-    pub table: &'a mut ResourceTable,
 }
 
 #[macro_export]
