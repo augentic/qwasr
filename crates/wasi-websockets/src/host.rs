@@ -34,9 +34,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use server::run_server;
 use store_impl::FutureResult;
-use warp::{Host, Server, State};
 use wasmtime::component::{HasData, Linker};
 use wasmtime_wasi::ResourceTable;
+use yetti::{Host, Server, State};
 
 pub use self::default_impl::WebSocketsDefault;
 use self::generated::wasi::websockets::{store, types as generated_types};
@@ -69,11 +69,15 @@ where
     }
 }
 
+/// A trait which provides internal WASI WebSockets state.
+///
+/// This is implemented by the `T` in `Linker<T>` — a single type shared across
+/// all WASI components for the runtime build.
 pub trait WebSocketsView: Send {
     fn websockets(&mut self) -> WasiWebSocketsCtxView<'_>;
 }
 
-/// View into [`WebSocketsCtxView`] and [`ResourceTable`].
+/// View into [`WebSocketsCtx`] implementation and [`ResourceTable`].
 pub struct WasiWebSocketsCtxView<'a> {
     /// Mutable reference to the WASI WebSockets context.
     pub ctx: &'a dyn WebSocketsCtx,
@@ -82,6 +86,10 @@ pub struct WasiWebSocketsCtxView<'a> {
     pub table: &'a mut ResourceTable,
 }
 
+/// A trait which provides internal WASI WebSockets context.
+///
+/// This is implemented by the resource-specific provider of WebSockets
+/// functionality.
 pub trait WebSocketsCtx: Debug + Send + Sync + 'static {
     fn serve(&self) -> FutureResult<Arc<dyn resource::Server>>;
 }
@@ -95,9 +103,9 @@ impl generated_types::Host for WasiWebSocketsCtxView<'_> {
 #[macro_export]
 macro_rules! wasi_view {
     ($store_ctx:ty, $field_name:ident) => {
-        impl wasi_websockets::WebSocketsView for $store_ctx {
-            fn websockets(&mut self) -> wasi_websockets::WasiWebSocketsCtxView<'_> {
-                wasi_websockets::WasiWebSocketsCtxView {
+        impl yetti_wasi_websockets::WebSocketsView for $store_ctx {
+            fn websockets(&mut self) -> yetti_wasi_websockets::WasiWebSocketsCtxView<'_> {
+                yetti_wasi_websockets::WasiWebSocketsCtxView {
                     ctx: &self.$field_name,
                     table: &mut self.table,
                 }

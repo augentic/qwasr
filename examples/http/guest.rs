@@ -12,9 +12,9 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{Value, json};
 use tracing::Level;
-use warp_sdk::HttpResult;
 use wasip3::exports::http::handler::Guest;
 use wasip3::http::types::{ErrorCode, Request, Response};
+use yetti_sdk::HttpResult;
 
 struct HttpGuest;
 wasip3::http::proxy::export!(HttpGuest);

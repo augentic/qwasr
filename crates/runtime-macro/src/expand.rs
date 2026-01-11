@@ -1,13 +1,16 @@
-//! # Generated Code Expansion
+//! # Runtime macro expansion
 //!
-//! Expands the generated code into a complete runtime implementation.
+//! Expands the parsed runtime configuration into a complete runtime implementation.
+
+use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
+use syn::{Ident, Path};
 
-use crate::generate::Generated;
+use crate::runtime::Config;
 
-pub fn expand(generated: Generated) -> TokenStream {
+pub fn expand(config: &Config) -> syn::Result<TokenStream> {
     let Generated {
         context_fields,
         store_ctx_fields,
@@ -16,25 +19,25 @@ pub fn expand(generated: Generated) -> TokenStream {
         server_trait_impls,
         wasi_view_impls,
         main_fn,
-    } = generated;
+    } = Generated::try_from(config)?;
 
-    quote! {
+    Ok(quote! {
         mod runtime {
             use std::path::PathBuf;
 
             use anyhow::Result;
-            use warp::anyhow::Context as _;
-            use warp::futures::future::{BoxFuture, try_join_all};
-            use warp::tokio;
-            use warp::wasmtime::component::InstancePre;
-            use warp::wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
-            use warp::{Backend, Compiled, Server, State};
+            use yetti::anyhow::Context as _;
+            use yetti::futures::future::{try_join_all, BoxFuture};
+            use yetti::tokio;
+            use yetti::wasmtime::component::{HasData,InstancePre};
+            use yetti::wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
+            use yetti::{Backend, Compiled, Server, State};
 
             use super::*;
 
             /// Run the specified wasm guest using the configured runtime.
             pub async fn run(wasm: PathBuf) -> Result<()> {
-                let mut compiled = warp::create(&wasm)
+                let mut compiled = yetti::create(&wasm)
                     .with_context(|| format!("compiling {}", wasm.display()))?;
                 let run_state = Context::new(&mut compiled)
                     .await
@@ -42,8 +45,7 @@ pub fn expand(generated: Generated) -> TokenStream {
                 run_state.start().await.context("starting runtime services")
             }
 
-            /// Initiator state holding pre-instantiated components and backend
-            /// connections.
+            /// Initiator state holding pre-instantiated components and backend connections.
             #[derive(Clone)]
             struct Context {
                 instance_pre: InstancePre<StoreCtx>,
@@ -51,8 +53,7 @@ pub fn expand(generated: Generated) -> TokenStream {
             }
 
             impl Context {
-                /// Creates a new runtime state by linking WASI interfaces and
-                /// connecting to backends.
+                /// Creates a new runtime state by linking WASI interfaces and connecting to backends.
                 async fn new(compiled: &mut Compiled<StoreCtx>) -> Result<Self> {
                     // link enabled WASI components
                     #(compiled.link(#host_trait_impls)?;)*
@@ -63,13 +64,12 @@ pub fn expand(generated: Generated) -> TokenStream {
                     })
                 }
 
-                /// Start servers
-                /// N.B. for simplicity, all hosts are "servers" with a default
-                /// implementation the does nothing
+                /// Start servers.
+                ///
+                /// N.B. for simplicity, all hosts are "servers" with a default implementation that does nothing.
                 async fn start(&self) -> Result<()> {
-                    let futures: Vec<BoxFuture<'_, Result<()>>> = vec![
-                        #(Box::pin(#server_trait_impls.run(self)),)*
-                    ];
+                    let futures: Vec<BoxFuture<'_, Result<()>>> =
+                        vec![#(Box::pin(#server_trait_impls.run(self)),)*];
                     try_join_all(futures).await?;
                     Ok(())
                 }
@@ -99,14 +99,14 @@ pub fn expand(generated: Generated) -> TokenStream {
                 }
             }
 
-            /// Per-guest instance data shared between the runtime and guest
+            /// Per-guest instance data shared between the runtime and the guest.
             pub struct StoreCtx {
                 pub table: ResourceTable,
                 pub wasi: WasiCtx,
                 #(pub #store_ctx_fields,)*
             }
 
-            /// WASI View Implementations
+            /// WASI view implementation for the default WASI context.
             impl WasiView for StoreCtx {
                 fn ctx(&mut self) -> WasiCtxView<'_> {
                     WasiCtxView {
@@ -116,10 +116,131 @@ pub fn expand(generated: Generated) -> TokenStream {
                 }
             }
 
+            // WASI view implementations for enabled hosts.
             #(#wasi_view_impls)*
         }
 
-        /// Main function
+        // Main function (optional)
         #main_fn
+    })
+}
+
+struct Generated {
+    context_fields: Vec<TokenStream>,
+    store_ctx_fields: Vec<TokenStream>,
+    store_ctx_values: Vec<TokenStream>,
+    host_trait_impls: Vec<Path>,
+    server_trait_impls: Vec<TokenStream>,
+    wasi_view_impls: Vec<TokenStream>,
+    main_fn: TokenStream,
+}
+
+impl TryFrom<&Config> for Generated {
+    type Error = syn::Error;
+
+    fn try_from(input: &Config) -> Result<Self, Self::Error> {
+        // `Context` struct
+        let mut context_fields = Vec::new();
+        let mut seen_backends = HashSet::new();
+
+        for backend in &input.backends {
+            // Deduplicate backends based on their string representation
+            let backend_str = quote! {#backend}.to_string();
+            if seen_backends.contains(&backend_str) {
+                continue;
+            }
+            seen_backends.insert(backend_str);
+
+            let field = field_ident(backend);
+            context_fields.push(quote! {#field: #backend});
+        }
+
+        let mut store_ctx_fields = Vec::new();
+        let mut store_ctx_values = Vec::new();
+        let mut host_trait_impls = Vec::new();
+        let mut server_trait_impls = Vec::new();
+        let mut wasi_view_impls = Vec::new();
+
+        for host in &input.hosts {
+            let host_type = &host.type_;
+            let host_ident = wasi_ident(host_type);
+            let backend_type = &host.backend;
+            let backend_ident = field_ident(backend_type);
+
+            host_trait_impls.push(host_type.clone());
+            store_ctx_fields.push(quote! {#host_ident: #backend_type});
+            store_ctx_values.push(quote! {#host_ident: self.#backend_ident.clone()});
+
+            // servers
+            server_trait_impls.push(quote! {#host_type});
+
+            // WASI view impls
+            // HACK: derive module name from WASI type
+            let module = wasi_ident(host_type);
+            wasi_view_impls.push(quote! {
+                #module::wasi_view!(StoreCtx, #host_ident);
+            });
+        }
+
+        // main function (optional)
+        let main_fn = if input.gen_main {
+            quote! {
+                use yetti::tokio;
+
+                #[tokio::main]
+                async fn main() -> anyhow::Result<()> {
+                    use yetti::Parser;
+                    match yetti::Cli::parse().command {
+                        yetti::Command::Run { wasm } => runtime::run(wasm).await,
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        Ok(Self {
+            context_fields,
+            store_ctx_fields,
+            store_ctx_values,
+            host_trait_impls,
+            server_trait_impls,
+            wasi_view_impls,
+            main_fn,
+        })
     }
+}
+
+/// Generates a field name for a backend type.
+fn field_ident(path: &Path) -> Ident {
+    let Some(ident) = path.segments.last() else {
+        return format_ident!("field");
+    };
+    let ident_str = quote! {#ident}.to_string();
+
+    // convert the type string to snake_case
+    let mut field_str = String::new();
+    for char in ident_str.chars() {
+        if char.is_uppercase() {
+            if !field_str.is_empty() {
+                field_str.push('_');
+            }
+            field_str.push_str(&char.to_lowercase().to_string());
+        } else {
+            field_str.push(char);
+        }
+    }
+
+    format_ident!("{field_str}")
+}
+
+fn wasi_ident(path: &Path) -> Ident {
+    let Some(ident) = path.segments.last() else {
+        return format_ident!("wasi");
+    };
+
+    let name = quote! {#ident}.to_string();
+    let name = name.replace("Wasi", "yetti_wasi_").to_lowercase();
+    format_ident!("{name}")
 }

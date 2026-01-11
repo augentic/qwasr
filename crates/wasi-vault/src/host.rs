@@ -30,9 +30,10 @@ mod generated {
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use warp::{Host, Server, State};
 use wasmtime::component::{HasData, Linker};
 use wasmtime_wasi::ResourceTable;
+pub use yetti::FutureResult;
+use yetti::{Host, Server, State};
 
 use self::generated::wasi::vault::vault;
 pub use crate::host::default_impl::VaultDefault;
@@ -56,24 +57,7 @@ where
 
 impl<S> Server<S> for WasiVault where S: State {}
 
-/// A trait which provides internal WASI Key-Value context.
-///
-/// This is implemented by the resource-specific provider of Key-Value
-/// functionality. For example, an in-memory store, or a Redis-backed store.
-pub trait WasiVaultCtx: Debug + Send + Sync + 'static {
-    fn open_locker(&self, identifier: String) -> FutureResult<Arc<dyn Locker>>;
-}
-
-/// View into [`WasiVaultCtx`] implementation and [`ResourceTable`].
-pub struct WasiVaultCtxView<'a> {
-    /// Mutable reference to the WASI Key-Value context.
-    pub ctx: &'a mut dyn WasiVaultCtx,
-
-    /// Mutable reference to table used to manage resources.
-    pub table: &'a mut ResourceTable,
-}
-
-/// A trait which provides internal WASI Key-Value state.
+/// A trait which provides internal WASI Vault state.
 ///
 /// This is implemented by the `T` in `Linker<T>` — a single type shared across
 /// all WASI components for the runtime build.
@@ -82,12 +66,29 @@ pub trait WasiVaultView: Send {
     fn vault(&mut self) -> WasiVaultCtxView<'_>;
 }
 
+/// View into [`WasiVaultCtx`] implementation and [`ResourceTable`].
+pub struct WasiVaultCtxView<'a> {
+    /// Mutable reference to the WASI Vault context.
+    pub ctx: &'a mut dyn WasiVaultCtx,
+
+    /// Mutable reference to table used to manage resources.
+    pub table: &'a mut ResourceTable,
+}
+
+/// A trait which provides internal WASI Vault context.
+///
+/// This is implemented by the resource-specific provider of Vault
+/// functionality.
+pub trait WasiVaultCtx: Debug + Send + Sync + 'static {
+    fn open_locker(&self, identifier: String) -> FutureResult<Arc<dyn Locker>>;
+}
+
 #[macro_export]
 macro_rules! wasi_view {
     ($store_ctx:ty, $field_name:ident) => {
-        impl wasi_vault::WasiVaultView for $store_ctx {
-            fn vault(&mut self) -> wasi_vault::WasiVaultCtxView<'_> {
-                wasi_vault::WasiVaultCtxView {
+        impl yetti_wasi_vault::WasiVaultView for $store_ctx {
+            fn vault(&mut self) -> yetti_wasi_vault::WasiVaultCtxView<'_> {
+                yetti_wasi_vault::WasiVaultCtxView {
                     ctx: &mut self.$field_name,
                     table: &mut self.table,
                 }

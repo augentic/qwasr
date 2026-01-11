@@ -12,15 +12,15 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use tracing::instrument;
-use warp::Backend;
 use wasmtime_wasi_config::WasiConfigVariables;
+use yetti::Backend;
 
 use crate::WasiConfigCtx;
 
 #[derive(Debug, Clone, Default)]
 pub struct ConnectOptions;
 
-impl warp::FromEnv for ConnectOptions {
+impl yetti::FromEnv for ConnectOptions {
     fn from_env() -> Result<Self> {
         Ok(Self)
     }

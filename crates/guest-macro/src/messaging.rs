@@ -47,9 +47,9 @@ pub fn expand(messaging: &Messaging, config: &Config) -> TokenStream {
 
     quote! {
         mod messaging {
-            use warp_sdk::wasi_messaging::types::{Error, Message};
-            use warp_sdk::{wasi_messaging, wasi_otel};
-            use warp_sdk::Handler;
+            use yetti_sdk::wasi_messaging::types::{Error, Message};
+            use yetti_sdk::{wasi_messaging, wasi_otel};
+            use yetti_sdk::Handler;
 
             use super::*;
 

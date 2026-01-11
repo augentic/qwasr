@@ -37,9 +37,10 @@ mod generated {
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use warp::{Host, Server, State};
 use wasmtime::component::{HasData, Linker};
 use wasmtime_wasi::{ResourceTable, ResourceTableError};
+pub use yetti::FutureResult;
+use yetti::{Host, Server, State};
 
 pub use self::default_impl::MessagingDefault;
 pub use self::generated::Messaging;
@@ -75,6 +76,24 @@ where
     async fn run(&self, state: &S) -> anyhow::Result<()> {
         server::run(state).await
     }
+}
+
+/// A trait which provides internal WASI Messaging state.
+///
+/// This is implemented by the `T` in `Linker<T>` — a single type shared across
+/// all WASI components for the runtime build.
+pub trait WasiMessagingView: Send {
+    /// Return a [`WasiMessagingCtxView`] from mutable reference to self.
+    fn messaging(&mut self) -> WasiMessagingCtxView<'_>;
+}
+
+/// View into [`WasiMessagingCtx`] implementation and [`ResourceTable`].
+pub struct WasiMessagingCtxView<'a> {
+    /// Mutable reference to the WASI Messaging context.
+    pub ctx: &'a mut dyn WasiMessagingCtx,
+
+    /// Mutable reference to table used to manage resources.
+    pub table: &'a mut ResourceTable,
 }
 
 /// A trait which provides internal WASI Messaging context.
@@ -143,24 +162,6 @@ pub trait WasiMessagingCtx: Debug + Send + Sync + 'static {
     ) -> anyhow::Result<Arc<dyn Message>>;
 }
 
-/// View into [`WasiMessagingCtx`] implementation and [`ResourceTable`].
-pub struct WasiMessagingCtxView<'a> {
-    /// Mutable reference to the WASI Key-Value context.
-    pub ctx: &'a mut dyn WasiMessagingCtx,
-
-    /// Mutable reference to table used to manage resources.
-    pub table: &'a mut ResourceTable,
-}
-
-/// A trait which provides internal WASI Key-Value state.
-///
-/// This is implemented by the `T` in `Linker<T>` — a single type shared across
-/// all WASI components for the runtime build.
-pub trait WasiMessagingView: Send {
-    /// Return a [`WasiMessagingCtxView`] from mutable reference to self.
-    fn messaging(&mut self) -> WasiMessagingCtxView<'_>;
-}
-
 impl From<ResourceTableError> for Error {
     fn from(err: ResourceTableError) -> Self {
         Self::Other(err.to_string())
@@ -176,9 +177,9 @@ impl From<anyhow::Error> for Error {
 #[macro_export]
 macro_rules! wasi_view {
     ($store_ctx:ty, $field_name:ident) => {
-        impl wasi_messaging::WasiMessagingView for $store_ctx {
-            fn messaging(&mut self) -> wasi_messaging::WasiMessagingCtxView<'_> {
-                wasi_messaging::WasiMessagingCtxView {
+        impl yetti_wasi_messaging::WasiMessagingView for $store_ctx {
+            fn messaging(&mut self) -> yetti_wasi_messaging::WasiMessagingCtxView<'_> {
+                yetti_wasi_messaging::WasiMessagingCtxView {
                     ctx: &mut self.$field_name,
                     table: &mut self.table,
                 }

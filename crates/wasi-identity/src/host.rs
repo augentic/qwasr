@@ -31,9 +31,10 @@ mod generated {
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use warp::{Host, Server, State};
 use wasmtime::component::{HasData, Linker};
 use wasmtime_wasi::ResourceTable;
+pub use yetti::FutureResult;
+use yetti::{Host, Server, State};
 
 pub use self::default_impl::IdentityDefault;
 use self::generated::wasi::identity::credentials;
@@ -57,10 +58,7 @@ where
 
 impl<S> Server<S> for WasiIdentity where S: State {}
 
-//===============================================
-// TODO: this could be a generic trait for all WASI hosts
-//===============================================
-/// A trait which provides internal WASI Key-Value state.
+/// A trait which provides internal WASI Identity state.
 ///
 /// This is implemented by the `T` in `Linker<T>` — a single type shared across
 /// all WASI components for the runtime build.
@@ -71,17 +69,17 @@ pub trait WasiIdentityView: Send {
 
 /// View into [`WasiIdentityCtx`] implementation and [`ResourceTable`].
 pub struct WasiIdentityCtxView<'a> {
-    /// Mutable reference to the WASI Key-Value context.
+    /// Mutable reference to the WASI Identity context.
     pub ctx: &'a mut dyn WasiIdentityCtx,
 
     /// Mutable reference to table used to manage resources.
     pub table: &'a mut ResourceTable,
 }
 
-/// A trait which provides internal WASI Key-Value context.
+/// A trait which provides internal WASI Identity context.
 ///
-/// This is implemented by the resource-specific provider of Key-Value
-/// functionality. For example, an in-memory store, or a Redis-backed store.
+/// This is implemented by the resource-specific provider of Identity
+/// functionality.
 pub trait WasiIdentityCtx: Debug + Send + Sync + 'static {
     fn get_identity(&self, name: String) -> FutureResult<Arc<dyn Identity>>;
 }
@@ -89,9 +87,9 @@ pub trait WasiIdentityCtx: Debug + Send + Sync + 'static {
 #[macro_export]
 macro_rules! wasi_view {
     ($store_ctx:ty, $field_name:ident) => {
-        impl wasi_identity::WasiIdentityView for $store_ctx {
-            fn identity(&mut self) -> wasi_identity::WasiIdentityCtxView<'_> {
-                wasi_identity::WasiIdentityCtxView {
+        impl yetti_wasi_identity::WasiIdentityView for $store_ctx {
+            fn identity(&mut self) -> yetti_wasi_identity::WasiIdentityCtxView<'_> {
+                yetti_wasi_identity::WasiIdentityCtxView {
                     ctx: &mut self.$field_name,
                     table: &mut self.table,
                 }

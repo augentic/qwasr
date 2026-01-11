@@ -59,7 +59,7 @@ version = "0.8.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.cc]]
-version = "1.2.51"
+version = "1.2.52"
 criteria = "safe-to-deploy"
 
 [[exemptions.cesu8]]
@@ -191,7 +191,7 @@ version = "0.1.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.find-msvc-tools]]
-version = "0.1.6"
+version = "0.1.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.fromenv]]
@@ -759,11 +759,11 @@ version = "0.8.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.zerocopy]]
-version = "0.8.31"
+version = "0.8.33"
 criteria = "safe-to-deploy"
 
 [[exemptions.zerocopy-derive]]
-version = "0.8.31"
+version = "0.8.33"
 criteria = "safe-to-deploy"
 
 [[exemptions.zerotrie]]

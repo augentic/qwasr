@@ -18,12 +18,12 @@ use hyper::service::service_fn;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tracing::{Instrument, debug_span};
-use warp::State;
 use wasmtime::Store;
 use wasmtime_wasi_http::io::TokioIo;
 use wasmtime_wasi_http::p3::WasiHttpView;
 use wasmtime_wasi_http::p3::bindings::ProxyIndices;
 use wasmtime_wasi_http::p3::bindings::http::types::{self as wasi, ErrorCode};
+use yetti::State;
 
 type OutgoingBody = UnsyncBoxBody<Bytes, anyhow::Error>;
 

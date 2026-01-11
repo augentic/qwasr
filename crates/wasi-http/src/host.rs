@@ -7,9 +7,9 @@ mod server;
 
 use anyhow::Result;
 pub use default_impl::HttpDefault;
-use warp::{Host, Server, State};
 use wasmtime::component::Linker;
 pub use wasmtime_wasi_http::p3::{WasiHttpCtxView, WasiHttpView};
+use yetti::{Host, Server, State};
 
 #[derive(Debug)]
 pub struct WasiHttp;
@@ -36,9 +36,9 @@ where
 #[macro_export]
 macro_rules! wasi_view {
     ($store_ctx:ty, $field_name:ident) => {
-        impl wasi_http::WasiHttpView for $store_ctx {
-            fn http(&mut self) -> wasi_http::WasiHttpCtxView<'_> {
-                wasi_http::WasiHttpCtxView {
+        impl yetti_wasi_http::WasiHttpView for $store_ctx {
+            fn http(&mut self) -> yetti_wasi_http::WasiHttpCtxView<'_> {
+                yetti_wasi_http::WasiHttpCtxView {
                     ctx: &mut self.$field_name,
                     table: &mut self.table,
                 }

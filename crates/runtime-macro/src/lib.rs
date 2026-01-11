@@ -1,5 +1,4 @@
 mod expand;
-mod generate;
 mod runtime;
 
 use proc_macro::TokenStream;
@@ -10,7 +9,7 @@ use syn::parse_macro_input;
 /// # Example
 ///
 /// ```ignore
-/// warp::runtime!({
+/// yetti::runtime!({
 ///     wasi_http: WasiHttp,
 ///     wasi_otel: DefaultOtel,
 ///     wasi_blobstore: MongoDb,
@@ -19,9 +18,8 @@ use syn::parse_macro_input;
 #[proc_macro]
 pub fn runtime(input: TokenStream) -> TokenStream {
     let parsed = parse_macro_input!(input as runtime::Config);
-    let generated = match generate::Generated::try_from(parsed) {
-        Ok(generated) => generated,
-        Err(e) => return e.into_compile_error().into(),
-    };
-    expand::expand(generated).into()
+    match expand::expand(&parsed) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.into_compile_error().into(),
+    }
 }

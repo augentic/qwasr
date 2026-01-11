@@ -69,23 +69,34 @@ pub trait FromEnv: Sized {
     fn from_env() -> Result<Self>;
 }
 
-// pub trait WasiHostCtx: Debug + Send + Sync + 'static {}
-// impl<T: Debug + Send + Sync + 'static> WasiHostCtx for T {}
-
-// /// A trait to provide internal WASI OpenTelemetry state.
+// /// Implemented by `StoreCtx` to provide access to a specific host's context.
 // ///
-// /// This is implemented by the `T` in `Linker<T>` — a single type shared across
-// /// all WASI components for the runtime build.
-// pub trait WasiHostView<T: WasiHostCtx>: Send {
-//     /// Return a [`WasiOtelCtxView`] from mutable reference to self.
-//     fn ctx_view(&mut self) -> WasiHostCtxView<'_, T>;
+// /// This trait enables the runtime macro to generate view provider implementations
+// /// without needing to know the module path of each WASI host.
+// ///
+// /// Each WASI host crate provides a blanket impl that automatically implements
+// /// their `WasiXxxView` trait for any type that implements `ViewProvider<WasiXxx>`.
+// pub trait View<H: HasData, T>: Send {
+//     /// Return a [`WasiBlobstoreCtxView`] from mutable reference to self.
+//     fn data(&mut self) -> <H as HasData>::Data<'_>;
 // }
 
-// /// View into [`WasiHostCtx`] implementation and [`ResourceTable`].
-// pub struct WasiHostCtxView<'a, T: WasiHostCtx> {
-//     /// Mutable reference to the WASI OpenTelemetry context.
-//     pub ctx: &'a mut T,
+// pub trait CtxView<'a, T>: HasData + 'a + Send {
+//     fn ctx_view(ctx: &'a mut T, table: &'a mut ResourceTable) -> <Self as HasData>::Data<'a>;
+// }
 
-//     /// Mutable reference to table used to manage resources.
-//     pub table: &'a mut ResourceTable,
+// /// ```rust,ignore
+// /// impl WasiHost for WasiHttp {
+// ///     type Ctx = dyn WasiHttpView;
+// /// }
+// /// ...
+// /// fn ctx(&mut self) -> <WasiHttp as WasiHost>::Ctx {}
+// /// ```
+// pub trait WasiHost {
+//     type Ctx: ?Sized;
+// }
+
+// /// Implemented by StoreCtx to provide access to a host's context
+// pub trait ViewProvider<H: WasiHost> {
+//     fn ctx_and_table(&mut self) -> (&mut H::Ctx, &mut ResourceTable);
 // }

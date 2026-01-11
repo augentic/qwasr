@@ -165,9 +165,9 @@ pub fn expand(http: &Http, config: &Config) -> TokenStream {
 
     quote! {
         mod http {
-            use warp_sdk::api::{HttpResult, Reply};
-            use warp_sdk::{axum, wasi_http, wasi_otel, wasip3};
-            use warp_sdk::Handler;
+            use yetti_sdk::api::{HttpResult, Reply};
+            use yetti_sdk::{axum, wasi_http, wasi_otel, wasip3};
+            use yetti_sdk::Handler;
 
             use super::*;
 
