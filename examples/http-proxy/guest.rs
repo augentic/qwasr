@@ -79,6 +79,7 @@ async fn cache() -> Result<impl IntoResponse, Infallible> {
         .body(Empty::<Bytes>::new())
         .expect("failed to build request");
 
+
     let response = yetti_wasi_http::handle(request).await.unwrap();
     let (parts, body) = response.into_parts();
     let http_response = http::Response::from_parts(parts, Body::from(body));

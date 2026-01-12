@@ -93,7 +93,7 @@ pub fn expand(config: &Config) -> syn::Result<TokenStream> {
 
                     StoreCtx {
                         table: ResourceTable::new(),
-                        wasi: yetti_wasi_ctx,
+                        wasi: wasi_ctx,
                         #(#store_ctx_values,)*
                     }
                 }

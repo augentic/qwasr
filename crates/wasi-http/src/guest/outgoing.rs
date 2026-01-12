@@ -3,12 +3,14 @@ use std::error::Error;
 
 use anyhow::{Context, Result};
 use bytes::Bytes;
+use http::HeaderValue;
+use http::header::ETAG;
 use http_body::Body;
-use http_body_util::BodyExt;
+// use http_body_util::BodyExt;
 use wasip3::http::handler;
-use wasip3::http_compat::{http_from_wasi_response, http_into_wasi_request};
+use wasip3::http_compat::{IncomingMessage, http_from_wasi_response, http_into_wasi_request};
+use wasip3::wit_future;
 
-use crate::DEFAULT_FORBIDDEN_HEADERS;
 pub use crate::guest::cache::{Cache, CacheOptions};
 
 /// Send an HTTP request using the WASI HTTP proxy handler.
@@ -24,7 +26,7 @@ where
 {
     let maybe_cache = Cache::maybe_from(&request)?;
 
-    // check cache when indicated by request
+    // check cache when indicated by `Cache-Control` header
     if let Some(cache) = maybe_cache.as_ref()
         && let Some(hit) = cache.get().await?
     {
@@ -32,26 +34,28 @@ where
         return Ok(hit);
     }
 
+    // forward to `wasmtime-wasi-http` outbound proxy
     tracing::debug!("forwarding request to proxy: {:?}", request.headers());
-
     let wasi_req = http_into_wasi_request(request).context("Issue converting request")?;
     let wasi_resp = handler::handle(wasi_req).await.context("Issue calling proxy")?;
     let http_resp = http_from_wasi_response(wasi_resp).context("Issue converting response")?;
 
-    // convert body
-    let (parts, body) = http_resp.into_parts();
-    let collected = body.collect().await.context("failed to collect body")?;
-    let bytes = collected.to_bytes();
-    let mut response = http::Response::from_parts(parts, bytes);
-    // filter out bad headers not allowed by wasi-http
-    let headers = response.headers_mut();
-    for forbidden in &DEFAULT_FORBIDDEN_HEADERS {
-        headers.remove(forbidden);
-    }
+    // convert wasi response to http response
+    let (parts, mut body) = http_resp.into_parts();
+    let (_body_tx, body_rx) = wit_future::new(|| Ok(()));
 
-    // add ETag header and cache response when indicated by request
+    let bytes = if let Some(response) = body.take_unstarted() {
+        let (stream, _trailers) = response.consume_body(body_rx);
+        stream.collect().await.into()
+    } else {
+        Bytes::new()
+    };
+
+    let mut response = http::Response::from_parts(parts, bytes);
+
+    // cache response when indicated by `Cache-Control` header
     if let Some(cache) = maybe_cache {
-        headers.insert(http::header::ETAG, http::HeaderValue::from_str(&cache.etag())?);
+        response.headers_mut().insert(ETAG, HeaderValue::from_str(&cache.etag())?);
         cache.put(&response).await?;
         tracing::debug!("response cached");
     }

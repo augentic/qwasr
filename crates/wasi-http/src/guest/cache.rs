@@ -170,10 +170,10 @@ impl TryFrom<&http::HeaderMap> for Control {
                 control.max_age = max_age;
             }
 
-            // ignore other directives
+            // ... other directives ignored
         }
 
-        if !control.no_store {
+        if !control.no_store && !control.no_cache {
             let Some(etag) = headers.get(IF_NONE_MATCH) else {
                 bail!(
                     "`If-None-Match` header required when using `Cache-Control: max-age` or `no-cache`"
