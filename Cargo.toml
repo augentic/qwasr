@@ -55,7 +55,7 @@ unused_result_ok = "warn"
 [workspace.dependencies]
 anyhow = "1.0.100"
 axum = { version = "0.8.8", default-features = false, features = ["json"] }
-base64ct = { version = "1.8.2", features = ["std"] }
+base64ct = { version = "1.8.3", features = ["std"] }
 bytes = "1.11.0"
 cfg-if = "1.0.4"
 chrono = "0.4.42"

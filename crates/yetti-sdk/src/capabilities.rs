@@ -111,7 +111,8 @@ pub trait StateStore: Send + Sync {
     #[cfg(target_arch = "wasm32")]
     fn get(&self, key: &str) -> impl Future<Output = Result<Option<Vec<u8>>>> + Send {
         async move {
-            let bucket = yetti_wasi_keyvalue::cache::open("cache").await.context("opening cache")?;
+            let bucket =
+                yetti_wasi_keyvalue::cache::open("cache").await.context("opening cache")?;
             bucket.get(key).await.context("reading state from cache")
         }
     }
@@ -122,7 +123,8 @@ pub trait StateStore: Send + Sync {
         &self, key: &str, value: &[u8], ttl_secs: Option<u64>,
     ) -> impl Future<Output = Result<Option<Vec<u8>>>> + Send {
         async move {
-            let bucket = yetti_wasi_keyvalue::cache::open("cache").await.context("opening cache")?;
+            let bucket =
+                yetti_wasi_keyvalue::cache::open("cache").await.context("opening cache")?;
             bucket.set(key, value, ttl_secs).await.context("reading state from cache")
         }
     }
@@ -131,7 +133,8 @@ pub trait StateStore: Send + Sync {
     #[cfg(target_arch = "wasm32")]
     fn delete(&self, key: &str) -> impl Future<Output = Result<()>> + Send {
         async move {
-            let bucket = yetti_wasi_keyvalue::cache::open("cache").await.context("opening cache")?;
+            let bucket =
+                yetti_wasi_keyvalue::cache::open("cache").await.context("opening cache")?;
             bucket.delete(key).await.context("deleting entry from cache")
         }
     }

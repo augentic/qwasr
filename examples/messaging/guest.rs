@@ -29,11 +29,11 @@ use axum::routing::post;
 use axum::{Json, Router};
 use bytes::Bytes;
 use serde_json::{Value, json};
-use yetti_wasi_messaging::types::{Client, Error, Message};
-use yetti_wasi_messaging::{producer, request_reply};
 use wasip3::exports::http::handler::Guest;
 use wasip3::http::types::{ErrorCode, Request, Response};
 use yetti_sdk::HttpResult;
+use yetti_wasi_messaging::types::{Client, Error, Message};
+use yetti_wasi_messaging::{producer, request_reply};
 
 // ----------------------------------------------------------------------------
 // HTTP Interface
