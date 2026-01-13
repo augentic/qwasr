@@ -63,13 +63,10 @@ where
             let (result, read) = stream.read(read_buf).await;
             body_buf.extend_from_slice(&read);
 
-            let StreamResult::Complete(size) = result else {
-                tracing::warn!("body read cancelled or dropped");
+            let StreamResult::Complete(_) = result else {
+                tracing::debug!("body read cancelled or dropped");
                 break;
             };
-            if size < CHUNK_SIZE {
-                break;
-            }
         }
     }
 
