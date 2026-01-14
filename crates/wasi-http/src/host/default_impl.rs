@@ -85,7 +85,14 @@ impl p3::WasiHttpCtx for HttpDefault {
                 client_builder = client_builder.identity(identity);
             }
 
+            // HACK: remove host header to appease Azure Frontdoor
+            parts.headers.remove("Host");
             client_builder = client_builder.default_headers(parts.headers);
+
+            // Disable system proxy in tests to avoid macOS system-configuration issues
+            #[cfg(test)]
+            let client_builder = client_builder.no_proxy();
+
             let client = client_builder.build().map_err(reqwest_error)?;
 
             // make request
@@ -166,6 +173,7 @@ mod tests {
 
         let requests = server.received_requests().await.expect("should have requests");
         assert_eq!(requests.len(), 1);
+        println!("requests: {:?}", requests[0].headers);
     }
 
     #[tokio::test]
