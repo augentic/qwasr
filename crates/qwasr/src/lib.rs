@@ -1,6 +1,6 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 //! # WebAssembly Initiator
+
+#![cfg(not(target_arch = "wasm32"))]
 
 #[cfg(feature = "jit")]
 mod compile;
