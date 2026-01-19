@@ -26,8 +26,7 @@ use crate::host::{DataType, Field, Row, WasiSqlCtx};
 /// This struct is used to load connection options from environment variables.
 #[derive(Debug, Clone, FromEnv)]
 pub struct ConnectOptions {
-    /// The database path or connection string.
-    #[env(from = "SQL_DATABASE", default = ":memory:")]
+    #[env(from = "SQL_DATABASE", default = "file::memory:?cache=shared")]
     pub database: String,
 }
 
@@ -42,7 +41,8 @@ impl qwasr::FromEnv for ConnectOptions {
 #[derive(Debug, Clone)]
 pub struct SqlDefault {
     // Store the database path to create new connections on demand
-    database_path: String,
+    // Mutex is necessary since rusqlite::Connection isn't `Sync`
+    conn: Arc<parking_lot::Mutex<SqliteConnection>>,
 }
 
 impl Backend for SqlDefault {
@@ -53,30 +53,21 @@ impl Backend for SqlDefault {
         tracing::debug!("initializing SQLite connection to: {}", options.database);
 
         // Create initial connection to validate database path
-        let _conn =
-            SqliteConnection::open(&options.database).context("failed to open SQLite database")?;
+        let conn = Arc::new(parking_lot::Mutex::new(
+            SqliteConnection::open(&options.database).context("failed to open SQLite database")?,
+        ));
 
-        Ok(Self {
-            database_path: options.database,
-        })
+        Ok(Self { conn })
     }
 }
 
 impl WasiSqlCtx for SqlDefault {
     fn open(&self, _name: String) -> FutureResult<Arc<dyn Connection>> {
         tracing::debug!("opening SQL connection");
-        let database_path = self.database_path.clone();
+        let conn = Arc::clone(&self.conn);
 
         async move {
-            // Create a new connection for each open call
-            // This allows multiple concurrent connections
-            let conn =
-                SqliteConnection::open(&database_path).context("failed to open SQLite database")?;
-
-            let connection = SqliteConnectionImpl {
-                conn: Arc::new(parking_lot::Mutex::new(conn)),
-            };
-
+            let connection = SqliteConnectionImpl { conn };
             Ok(Arc::new(connection) as Arc<dyn Connection>)
         }
         .boxed()
@@ -169,6 +160,7 @@ fn datatype_to_rusqlite_value(dt: &DataType) -> rusqlite::types::Value {
         DataType::Double(Some(f)) => rusqlite::types::Value::Real(*f),
         DataType::Str(Some(s)) => rusqlite::types::Value::Text(s.clone()),
         DataType::Binary(Some(b)) => rusqlite::types::Value::Blob(b.clone()),
+        DataType::Timestamp(Some(ts)) => rusqlite::types::Value::Text(ts.clone()),
         // All None variants map to NULL
         _ => rusqlite::types::Value::Null,
     }

@@ -14,6 +14,15 @@ mod generated {
     });
 }
 
+pub mod orm;
+
+// Re-exports for ``entity`` macro use only. This is needed to avoid leaking ``SeqQuery`` value
+// types into guest code
+#[doc(hidden)]
+pub mod __private {
+    pub use sea_query::Value;
+}
+
 use anyhow::Result;
 use base64ct::{Base64, Encoding};
 use serde_json::Value;
@@ -41,11 +50,11 @@ pub fn into_json(rows: Vec<Row>) -> Result<Value> {
                     DataType::Double(Some(v)) => {
                         serde_json::Number::from_f64(v).map_or(Value::Null, Value::Number)
                     }
-                    DataType::Str(Some(v)) => Value::String(v),
+                    DataType::Str(Some(v))
+                    | DataType::Date(Some(v))
+                    | DataType::Time(Some(v))
+                    | DataType::Timestamp(Some(v)) => Value::String(v),
                     DataType::Boolean(Some(v)) => Value::Bool(v),
-                    DataType::Date(Some(formatted))
-                    | DataType::Time(Some(formatted))
-                    | DataType::Timestamp(Some(formatted)) => Value::String(formatted.value),
                     DataType::Binary(Some(v)) => {
                         let encoded = Base64::encode_string(&v);
                         Value::String(encoded)
