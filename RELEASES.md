@@ -6,7 +6,7 @@ Unreleased
 
 - `ORM` layer which abstracts `SeaQuery` (https://github.com/SeaQL/sea-query) and provides
   a database agnostic mechanism to build SQL queries ergonomically while maintaining type
-  safety and heavy dependencies in WASM guest components
+  safety and avoiding database specific dependencies in WASM guest components
 
 ### Changed
 
