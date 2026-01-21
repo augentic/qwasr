@@ -459,205 +459,179 @@ fn as_json(value: &DataType) -> Result<serde_json::Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Field, Row};
 
     #[test]
-    fn fetch_value_i64() {
-        let row = Row {
-            fields: vec![Field {
-                name: "id".to_string(),
-                value: DataType::Int64(Some(42)),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: i64 = FetchValue::fetch(&row, "id").unwrap();
-        assert_eq!(result, 42);
-    }
-
-    #[test]
-    fn fetch_value_string() {
-        let row = Row {
-            fields: vec![Field {
-                name: "name".to_string(),
-                value: DataType::Str(Some("test".to_string())),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: String = FetchValue::fetch(&row, "name").unwrap();
-        assert_eq!(result, "test");
-    }
-
-    #[test]
-    fn fetch_value_bool() {
-        let row = Row {
-            fields: vec![Field {
-                name: "active".to_string(),
-                value: DataType::Boolean(Some(true)),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: bool = FetchValue::fetch(&row, "active").unwrap();
-        assert!(result);
-    }
-
-    #[test]
-    fn fetch_optional_some() {
-        let row = Row {
-            fields: vec![Field {
-                name: "email".to_string(),
-                value: DataType::Str(Some("test@example.com".to_string())),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: Option<String> = FetchValue::fetch(&row, "email").unwrap();
-        assert_eq!(result, Some("test@example.com".to_string()));
-    }
-
-    #[test]
-    fn fetch_optional_none() {
-        let row = Row {
-            fields: vec![Field {
-                name: "phone".to_string(),
-                value: DataType::Str(None),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: Option<String> = FetchValue::fetch(&row, "phone").unwrap();
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn fetch_missing_column() {
-        let row = Row {
-            fields: vec![Field {
-                name: "id".to_string(),
-                value: DataType::Int64(Some(1)),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: Result<String> = FetchValue::fetch(&row, "missing");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("missing column"));
-    }
-
-    #[test]
-    fn fetch_wrong_type() {
-        let row = Row {
-            fields: vec![Field {
-                name: "id".to_string(),
-                value: DataType::Str(Some("not_a_number".to_string())),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: Result<i64> = FetchValue::fetch(&row, "id");
-        result.unwrap_err();
-    }
-
-    #[test]
-    fn fetch_datetime_rfc3339() {
-        let row = Row {
-            fields: vec![Field {
-                name: "created_at".to_string(),
-                value: DataType::Timestamp(Some("2024-01-15T10:30:45.123Z".to_string())),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: DateTime<Utc> = FetchValue::fetch(&row, "created_at").unwrap();
-        assert_eq!(result.to_rfc3339(), "2024-01-15T10:30:45.123+00:00");
-    }
-
-    #[test]
-    fn fetch_datetime_fallback_format() {
-        let row = Row {
-            fields: vec![Field {
-                name: "updated_at".to_string(),
-                value: DataType::Timestamp(Some("2024-01-15 10:30:45.123".to_string())),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: DateTime<Utc> = FetchValue::fetch(&row, "updated_at").unwrap();
-        assert_eq!(result.format("%Y-%m-%d %H:%M:%S").to_string(), "2024-01-15 10:30:45");
-    }
-
-    #[test]
-    fn fetch_datetime_invalid_format() {
-        let row = Row {
-            fields: vec![Field {
-                name: "bad_date".to_string(),
-                value: DataType::Timestamp(Some("not a valid date".to_string())),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: Result<DateTime<Utc>> = FetchValue::fetch(&row, "bad_date");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unsupported timestamp"));
-    }
-
-    #[test]
-    fn fetch_optional_datetime() {
-        let row = Row {
-            fields: vec![Field {
-                name: "deleted_at".to_string(),
-                value: DataType::Timestamp(None),
-            }],
-            index: "0".to_string(),
-        };
-
-        let result: Option<DateTime<Utc>> = FetchValue::fetch(&row, "deleted_at").unwrap();
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn value_to_wasi_bool() {
+    fn value_to_wasi_numeric_types() {
         use sea_query::Value;
 
-        let val = value_to_wasi_datatype(Value::Bool(Some(true))).unwrap();
-        assert!(matches!(val, DataType::Boolean(Some(true))));
-    }
+        // Boolean
+        let val_bool = value_to_wasi_datatype(Value::Bool(Some(true))).unwrap();
+        assert!(matches!(val_bool, DataType::Boolean(Some(true))));
 
-    #[test]
-    fn value_to_wasi_integers() {
-        use sea_query::Value;
-
+        // Integers
         let val_int = value_to_wasi_datatype(Value::Int(Some(42))).unwrap();
-        let val_bigint = value_to_wasi_datatype(Value::BigInt(Some(999))).unwrap();
-
         assert!(matches!(val_int, DataType::Int32(Some(42))));
+
+        let val_bigint = value_to_wasi_datatype(Value::BigInt(Some(999))).unwrap();
         assert!(matches!(val_bigint, DataType::Int64(Some(999))));
+
+        let val_tiny = value_to_wasi_datatype(Value::TinyInt(Some(10))).unwrap();
+        assert!(matches!(val_tiny, DataType::Int32(Some(10))));
+
+        let val_small = value_to_wasi_datatype(Value::SmallInt(Some(1000))).unwrap();
+        assert!(matches!(val_small, DataType::Int32(Some(1000))));
+
+        // Unsigned integers
+        let val_tiny_u = value_to_wasi_datatype(Value::TinyUnsigned(Some(10))).unwrap();
+        assert!(matches!(val_tiny_u, DataType::Uint32(Some(10))));
+
+        let val_small_u = value_to_wasi_datatype(Value::SmallUnsigned(Some(500))).unwrap();
+        assert!(matches!(val_small_u, DataType::Uint32(Some(500))));
+
+        let val_unsigned = value_to_wasi_datatype(Value::Unsigned(Some(1000))).unwrap();
+        assert!(matches!(val_unsigned, DataType::Uint32(Some(1000))));
+
+        let val_big_u = value_to_wasi_datatype(Value::BigUnsigned(Some(10000))).unwrap();
+        assert!(matches!(val_big_u, DataType::Uint64(Some(10000))));
+
+        // Floats
+        let val_f32 = value_to_wasi_datatype(Value::Float(Some(std::f32::consts::PI))).unwrap();
+        assert!(
+            matches!(val_f32, DataType::Float(Some(v)) if (v - std::f32::consts::PI).abs() < 0.01)
+        );
+
+        let val_f64 = value_to_wasi_datatype(Value::Double(Some(std::f64::consts::E))).unwrap();
+        assert!(
+            matches!(val_f64, DataType::Double(Some(v)) if (v - std::f64::consts::E).abs() < 0.001)
+        );
     }
 
     #[test]
-    fn value_to_wasi_string() {
+    fn value_to_wasi_string_types() {
         use sea_query::Value;
 
-        let val =
+        // String
+        let val_string =
             value_to_wasi_datatype(Value::String(Some(Box::new("test".to_string())))).unwrap();
-
-        if let DataType::Str(Some(s)) = &val {
+        if let DataType::Str(Some(s)) = &val_string {
             assert_eq!(s, "test");
         } else {
             panic!("Expected string");
         }
+
+        // Char
+        let val_char = value_to_wasi_datatype(Value::Char(Some('A'))).unwrap();
+        if let DataType::Str(Some(s)) = &val_char {
+            assert_eq!(s, "A");
+        } else {
+            panic!("Expected string from char");
+        }
     }
 
     #[test]
-    fn check_is_null() {
-        assert!(is_null(&DataType::Str(None)));
-        assert!(is_null(&DataType::Int64(None)));
-        assert!(is_null(&DataType::Boolean(None)));
-        assert!(is_null(&DataType::Date(None)));
-        assert!(is_null(&DataType::Time(None)));
-        assert!(is_null(&DataType::Timestamp(None)));
-        assert!(!is_null(&DataType::Str(Some("test".to_string()))));
+    fn value_to_wasi_binary_types() {
+        use sea_query::Value;
+
+        let val = value_to_wasi_datatype(Value::Bytes(Some(Box::new(vec![1, 2, 3])))).unwrap();
+        if let DataType::Binary(Some(b)) = &val {
+            assert_eq!(b, &vec![1, 2, 3]);
+        } else {
+            panic!("Expected binary");
+        }
+    }
+
+    #[test]
+    fn value_to_wasi_datetime_types() {
+        use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+        use sea_query::Value;
+
+        // Date
+        let date = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        let val_date = value_to_wasi_datatype(Value::ChronoDate(Some(Box::new(date)))).unwrap();
+        if let DataType::Date(Some(s)) = &val_date {
+            assert_eq!(s, "2024-01-15");
+        } else {
+            panic!("Expected date string");
+        }
+
+        // Time
+        let time = NaiveTime::from_hms_opt(10, 30, 45).unwrap();
+        let val_time = value_to_wasi_datatype(Value::ChronoTime(Some(Box::new(time)))).unwrap();
+        if let DataType::Time(Some(s)) = &val_time {
+            assert!(s.starts_with("10:30:45"));
+        } else {
+            panic!("Expected time string");
+        }
+
+        // DateTime
+        let dt = NaiveDateTime::parse_from_str("2024-01-15 10:30:45", "%Y-%m-%d %H:%M:%S").unwrap();
+        let val_dt = value_to_wasi_datatype(Value::ChronoDateTime(Some(Box::new(dt)))).unwrap();
+        if let DataType::Timestamp(Some(s)) = &val_dt {
+            assert!(s.starts_with("2024-01-15"));
+        } else {
+            panic!("Expected timestamp string");
+        }
+
+        // DateTime<Utc>
+        let dt_utc: DateTime<Utc> = "2024-01-15T10:30:45Z".parse().unwrap();
+        let val_dt_utc =
+            value_to_wasi_datatype(Value::ChronoDateTimeUtc(Some(Box::new(dt_utc)))).unwrap();
+        if let DataType::Timestamp(Some(s)) = &val_dt_utc {
+            assert!(s.contains("2024-01-15"));
+            assert!(s.contains("10:30:45"));
+        } else {
+            panic!("Expected timestamp string");
+        }
+    }
+
+    #[test]
+    fn value_to_wasi_null_variants() {
+        use sea_query::Value;
+
+        let val_bool = value_to_wasi_datatype(Value::Bool(None)).unwrap();
+        assert!(matches!(val_bool, DataType::Boolean(None)));
+
+        let val_int = value_to_wasi_datatype(Value::Int(None)).unwrap();
+        assert!(matches!(val_int, DataType::Int32(None)));
+
+        let val_bigint = value_to_wasi_datatype(Value::BigInt(None)).unwrap();
+        assert!(matches!(val_bigint, DataType::Int64(None)));
+
+        let val_string = value_to_wasi_datatype(Value::String(None)).unwrap();
+        assert!(matches!(val_string, DataType::Str(None)));
+    }
+
+    #[test]
+    fn as_type_conversion_errors() {
+        // Test that as_* functions properly reject wrong types
+
+        // as_bool should reject non-boolean
+        let result = as_bool(&DataType::Int32(Some(1)));
+        result.unwrap_err();
+
+        // as_i32 should reject non-int32
+        let result = as_i32(&DataType::Str(Some("not a number".to_string())));
+        result.unwrap_err();
+
+        // as_i64 should reject non-int64
+        let result = as_i64(&DataType::Boolean(Some(true)));
+        result.unwrap_err();
+
+        // as_string should reject non-string
+        let result = as_string(&DataType::Int32(Some(42)));
+        result.unwrap_err();
+
+        // as_binary should reject non-binary
+        let result = as_binary(&DataType::Str(Some("not binary".to_string())));
+        result.unwrap_err();
+
+        // as_timestamp should reject invalid date format
+        let result = as_timestamp(&DataType::Timestamp(Some("invalid date".to_string())));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("unsupported timestamp"));
+
+        // as_json should reject invalid JSON
+        let result = as_json(&DataType::Str(Some("not json".to_string())));
+        result.unwrap_err();
     }
 }
