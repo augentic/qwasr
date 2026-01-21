@@ -6,6 +6,19 @@ Unreleased
 
 ### Changed
 
+<!-- Release notes generated using configuration in .github/release.yaml at main -->
+
+## What's Changed
+* Bump to 0.24.0 by @github-actions[bot] in https://github.com/augentic/qwasr/pull/156
+* Fix Outgoing Http by @andrewweston in https://github.com/augentic/qwasr/pull/157
+* Bump to 0.25.0 by @github-actions[bot] in https://github.com/augentic/qwasr/pull/158
+* Update shared workflow location by @andrewweston in https://github.com/augentic/qwasr/pull/159
+* ORM layer for wasi-sql by @karthik-phl in https://github.com/augentic/qwasr/pull/160
+* Wasi sql orm tests by @karthik-phl in https://github.com/augentic/qwasr/pull/161
+
+
+**Full Changelog**: https://github.com/augentic/qwasr/compare/v0.24.0...v0.26.0
+
 ---
 
 Release notes for previous releases can be found on the respective release
