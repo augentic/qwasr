@@ -8,20 +8,9 @@ use futures::{FutureExt as _, TryStreamExt as _};
 use omnia_core::sha256_digest;
 use wasm_pkg_client::{Client, Config, ContentStream, PackageRef, Registry, Release, Version};
 
-use crate::LoadError;
+use crate::error::LoadError;
+use crate::source::RegistrySource;
 use crate::store::{ContentStore, NoStore, ReleaseStore};
-
-/// Registry acquisition policy — the registry slot of
-/// [`Plugins`](crate::Plugins).
-pub trait RegistrySource: Send + Sync + 'static {
-    /// Produce the raw component bytes for `package` from `registry`
-    /// (`None` selects the acquirer's default endpoint), split by remedy:
-    /// [`LoadError::Refused`] for an authoritative "no", never for a
-    /// source failure a retry might clear ([`LoadError::Unavailable`]).
-    fn acquire<'a>(
-        &'a self, package: &'a str, registry: Option<&'a str>,
-    ) -> BoxFuture<'a, Result<Vec<u8>, LoadError>>;
-}
 
 /// Registry acquisition using [wasm-pkg-client].
 ///

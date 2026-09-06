@@ -9,16 +9,8 @@ use cap_std::fs::Dir;
 use futures::FutureExt as _;
 use futures::future::BoxFuture;
 
-use crate::LoadError;
-
-/// Path acquisition policy — the path slot of [`Plugins`](crate::Plugins).
-pub trait PathSource: Send + Sync + 'static {
-    /// Produce the raw component bytes at the location-relative `path`,
-    /// split by remedy: [`LoadError::Refused`] for a path no location
-    /// serves, never for a read failure a retry might clear
-    /// ([`LoadError::Unavailable`]).
-    fn acquire<'a>(&'a self, path: &'a str) -> BoxFuture<'a, Result<Vec<u8>, LoadError>>;
-}
+use crate::error::LoadError;
+use crate::source::PathSource;
 
 /// Path acquisition over named `(name, directory)` roots, resolved like guest
 /// preopens and read fresh on every load.
