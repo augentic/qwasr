@@ -3,10 +3,12 @@
 #![allow(unsafe_code)] // `DeploymentBuilder::build_trusted` and `Source::load`
 
 // The embedder facade: the runtime spine (`omnia-core`), the plugins
-// capability (`omnia-plugin`), the `run` grammar (`omnia-cli`, behind the
-// `cli` feature), and the `runtime!` macro, re-exported under one root. The
-// `runtime!` macro emits `omnia::…` paths, so every name it references must
-// stay reachable from here.
+// capability (`omnia-plugin`, behind the `plugin` feature), the `run` grammar
+// (`omnia-cli`, behind the `cli` feature), and the `runtime!` macro,
+// re-exported under one root. The `runtime!` macro emits `omnia::…` paths, so
+// every name it references must stay reachable from here — the plugin names
+// only when the invocation declares `locations:`, which is what the feature
+// gates.
 //
 // `#[doc(inline)]` matters: rustdoc renders a cross-crate `pub use` as a bare
 // re-export line pointing into the source crate, so without it every item
@@ -16,8 +18,10 @@
 // `anyhow` is the error vocabulary of `Backend`, `Wiring`, and the generated
 // runtime module; `futures` supplies the `BoxFuture` in the plugin store and
 // acquirer seams (`ContentStore`, `ReleaseStore`, `PathSource`,
-// `RegistrySource`). Both are part of the facade's public signatures, so
-// embedders reach them from here without a direct dependency of their own.
+// `RegistrySource`) and the generated `serve` hook. Both are part of the
+// facade's public signatures, so embedders reach them from here without a
+// direct dependency of their own; `futures` stays unconditional because the
+// macro output uses it whether or not the plugin surface is enabled.
 #[cfg(feature = "jit")]
 pub mod compile;
 mod deployment;
@@ -42,6 +46,7 @@ pub use omnia_core::{
 pub use omnia_core::{WrpcCtxView, WrpcView, pastey, tokio, wasmtime, wasmtime_wasi};
 #[doc(inline)]
 pub use omnia_host_macros::runtime;
+#[cfg(feature = "plugin")]
 #[doc(inline)]
 pub use omnia_plugin::{
     ContentStore, LoadError, NoStore, Origin, PathMounts, PathSource, Plugin, PluginLoader,

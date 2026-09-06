@@ -46,7 +46,7 @@ The deployment-wide `plugins` list naming interfaces the host will mediate betwe
 
 ### Plugin loader
 
-The `omnia:plugins/loader` host capability: a guest names a package (location plus optional sha256 pin) and the host acquires, verifies, validates, and registers it, returning a typed handle. Request-only — component bytes never cross the interface, and the requester gains no lifecycle authority. Linked when the deployment declares a `plugins:` block; reachable only from worlds that import it. The requester surface — the `Plugins` capability trait, shared `PluginRef`/`Digest` types, and ensure-once handle memoization — ships in `omnia-guest`'s `plugins` module.
+The `omnia:plugins/loader` host capability: a guest names a package (location plus optional sha256 pin) and the host acquires, verifies, validates, and registers it, returning a typed handle. Request-only — component bytes never cross the interface, and the requester gains no lifecycle authority. Ships behind omnia's `plugin` feature; linked when the deployment declares plugin locations (the macro's `locations:` list, or a `plugins:` block beside `config:` over the TOML's `[[location]]` entries); reachable only from worlds that import it. The requester surface — the `Plugins` capability trait, shared `PluginRef`/`Digest` types, and ensure-once handle memoization — ships in `omnia-guest`'s `plugins` module.
 
 ### Acquisition policy
 
@@ -62,7 +62,7 @@ Same layer as **Layers 1 + 2 (composition root + live-runtime SDK + WASI interfa
 
 ### Facade
 
-The `omnia` crate, the **composition root** and an embedder's only omnia dependency: it owns deployment assembly and process lifecycle, composes the optional crates — `omnia-plugin` (plugin loader capability) and `omnia-cli` (the `run` grammar, a leaf crate behind the `cli` feature) — and re-exports the `omnia-core` live-runtime SDK and the `runtime!` macro under `omnia::…` paths.
+The `omnia` crate, the **composition root** and an embedder's only omnia dependency: it owns deployment assembly and process lifecycle, composes the optional crates — `omnia-plugin` (the plugin loader capability, behind the `plugin` feature) and `omnia-cli` (the `run` grammar, a leaf crate behind the `cli` feature) — and re-exports the `omnia-core` live-runtime SDK and the `runtime!` macro under `omnia::…` paths.
 
 ### Runtime contract
 

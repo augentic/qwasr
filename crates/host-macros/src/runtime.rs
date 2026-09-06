@@ -25,9 +25,10 @@ pub fn expand(config: &Config) -> TokenStream {
     } = Codegen::from(config);
 
     let mode = mode.tokens();
-    // A declared `plugins:` block opts the deployment into the loader host —
+    // A declared `locations:` list opts the deployment into the loader host —
     // worlds that do not import `omnia:plugins/loader` never see it — and
-    // installs whatever locations the manifest carries.
+    // installs those locations. Interfaces-only deployments emit no plugin
+    // path at all, so they build without `omnia`'s `plugin` feature.
     let plugins_host = link_plugins.then(|| {
         quote! {
             deployment.host::<omnia::WasiPlugins, B>()?;
@@ -256,8 +257,9 @@ mod tests {
     // Guest-owned routes and the deployment-wide plugins block: every trigger
     // list expands to `route_*` builder calls on the owning `GuestEntry` (the
     // guest id is the implicit target), the `plugins:` block's `interfaces:`
-    // list to `.plugins(...)` calls on the `Manifest` plus the `WasiPlugins`
-    // loader host link, and patterns/interfaces are arbitrary expressions.
+    // list to `.plugins(...)` calls on the `Manifest` — and, with no
+    // `locations:`, no loader host link — and patterns/interfaces are
+    // arbitrary expressions.
     #[test]
     fn expand_inline_manifest() {
         insta::assert_snapshot!(expand_pretty(quote!({
@@ -289,8 +291,9 @@ mod tests {
     }
 
     // The declarative locations grammar: each entry lowers into a
-    // `Location` on the inline manifest, and the declared `plugins:`
-    // block makes the generated `Wiring::extend` install them.
+    // `Location` on the inline manifest, and the declared `locations:`
+    // list links the loader host and makes the generated `Wiring::extend`
+    // install them.
     #[test]
     fn expand_locations() {
         insta::assert_snapshot!(expand_pretty(quote!({
@@ -310,8 +313,9 @@ mod tests {
         })));
     }
 
-    // A bare `plugins: {}` block still links the loader host and installs
-    // whatever locations the manifest carries — here, none.
+    // A `plugins:` block without `locations:` is interfaces-only: no loader
+    // host link, no `extend` hook, so the expansion never names a plugin
+    // path and builds without `omnia`'s `plugin` feature.
     #[test]
     fn expand_plugins_without_locations() {
         insta::assert_snapshot!(expand_pretty(quote!({
@@ -319,6 +323,20 @@ mod tests {
             guests: [
                 { id: "engine", source: "engine.wasm" },
             ],
+        })));
+    }
+
+    // A bare `plugins: {}` beside `config:` is the config-file deployment's
+    // opt-in: its locations live in the TOML's `[[location]]` entries, so
+    // the loader host links and `extend` installs whatever they declare.
+    #[test]
+    fn expand_config_file_with_plugins() {
+        insta::assert_snapshot!(expand_pretty(quote!({
+            config: concat!(env!("CARGO_MANIFEST_DIR"), "/omnia.toml"),
+            plugins: {},
+            hosts: {
+                WasiOtel: OtelDefault,
+            },
         })));
     }
 

@@ -22,8 +22,8 @@ pub struct Codegen {
     /// declares neither `config:` nor inline manifest keys.
     pub manifest: Option<TokenStream>,
     /// Whether to link the `omnia::WasiPlugins` loader host and install the
-    /// declared locations — a `plugins:` block means the deployment opted
-    /// into the loader capability.
+    /// declared locations — a `locations:` list means the deployment opted
+    /// into the loader capability (and into `omnia`'s `plugin` feature).
     pub link_plugins: bool,
 }
 
@@ -46,7 +46,7 @@ impl From<&Config> for Codegen {
             backends_def,
             main_options,
             manifest,
-            link_plugins: config.plugins_declared,
+            link_plugins: config.link_loader,
         }
     }
 }

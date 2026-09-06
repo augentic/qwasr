@@ -70,6 +70,7 @@ cargo clippy -p omnia -p omnia-wasi-sql -p omnia-wasi-identity -p omnia-guest --
 cargo clippy -p omnia --no-default-features --features cli --all-targets -- -D warnings
 cargo clippy -p omnia --no-default-features --features jit --all-targets -- -D warnings
 cargo clippy -p omnia --no-default-features --features otlp --all-targets -- -D warnings
+cargo clippy -p omnia --no-default-features --features plugin --all-targets -- -D warnings
 cargo clippy -p omnia-cli --no-default-features --all-targets -- -D warnings
 cargo clippy -p omnia-cli --no-default-features --features jit --all-targets -- -D warnings
 for features in build guest host guest,host; do

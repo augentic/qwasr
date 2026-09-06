@@ -24,6 +24,13 @@ default = ["cli", "jit", "otlp"]
 # `DeploymentBuilder`.
 cli = ["dep:omnia-cli"]
 
+# Enables the `omnia:plugins/loader` capability: the `WasiPlugins` host, the
+# `Plugins` load path, and the built-in acquirers (`PathMounts`,
+# `RegistryClient`) with their HTTP/OCI registry stack. A `runtime!`
+# invocation declaring `plugins: { locations: [...] }` requires it; without it,
+# deployments are interfaces-only and never link the loader.
+plugin = ["dep:omnia-plugin"]
+
 # Enables just-in-time wasm to machine code compilation.
 jit = ["omnia-core/jit", "omnia-cli?/jit"]
 
@@ -50,7 +57,7 @@ futures.workspace = true
 omnia-cli = { workspace = true, optional = true }
 omnia-core.workspace = true
 omnia-host-macros.workspace = true
-omnia-plugin.workspace = true
+omnia-plugin = { workspace = true, optional = true }
 serde.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "time"] }
 toml.workspace = true

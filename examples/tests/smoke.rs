@@ -361,6 +361,12 @@ async fn examples() -> Result<()> {
         .iter()
         .filter(|s| filters.is_empty() || filters.iter().any(|f| s.name().starts_with(f.as_str())));
 
+    // reqwest's TLS stack (`rustls-no-provider`) builds no client until a
+    // process crypto provider is installed; the runtime does this inside
+    // the host, but the smoke client lives in the test process.
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
     // Every server scenario restarts a host on the same port; a pooled
     // keep-alive socket to the previous host would be reused for the next
     // one's first request and get reset. Never keep idle connections.

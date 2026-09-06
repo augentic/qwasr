@@ -79,7 +79,7 @@ Layers 1 and 2 form the **runtime core** — domain-agnostic infrastructure that
 
 - **Deployment pipeline**: `DeploymentBuilder` builds a `Deployment` from a `Manifest` (loaded from `omnia.toml`, synthesized from a single `.wasm`, or constructed programmatically)
 - **Lifecycle**: `Wiring`, `Backends`, `Mode`; `run` / `run_with` take a built `Deployment`, call `Deployment::assemble`, then drive command mode or the trigger servers
-- **Optional-crate composition**: `omnia-plugin` (the `omnia:plugins/loader` capability), `omnia-cli` (the `run` grammar, behind the `cli` feature), and the `runtime!` macro
+- **Optional-crate composition**: `omnia-plugin` (the `omnia:plugins/loader` capability, behind the `plugin` feature — a `runtime!` invocation declaring `plugins: { locations: [...] }` requires it), `omnia-cli` (the `run` grammar, behind the `cli` feature), and the `runtime!` macro
 
 `omnia-core` is the live-runtime SDK a capability crate targets. Depend on it directly only when building another capability crate. It provides:
 
