@@ -35,7 +35,7 @@ hyper-util = { workspace = true, features = ["tokio"] }
 reqwest.workspace = true
 # The smoke runner's own `reqwest::Client` needs a process crypto provider;
 # `ring` is already in the graph through `omnia-wasi-http`.
-rustls = { version = "0.23.43", default-features = false, features = ["ring", "std"] }
+rustls.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 axum = { workspace = true, features = ["macros", "query"] }
