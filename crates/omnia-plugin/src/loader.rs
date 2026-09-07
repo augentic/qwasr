@@ -3,14 +3,11 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use futures::FutureExt as _;
-use futures::future::BoxFuture;
-use omnia_core::{AdmitError, GuestId, Location, Runtime, WeakRuntime, sha256_digest};
+use omnia_core::{AdmitError, GuestId, Runtime, sha256_digest};
 
-use crate::Origin;
-use crate::host::Error;
-use crate::path::{PathMounts, PathSource};
-use crate::registry::{RegistryClient, RegistrySource};
+use crate::admission::{Admission, Registration};
+use crate::error::LoadError;
+use crate::source::{Origin, PathSource, RegistrySource};
 
 /// Host-side `omnia:plugins/loader.load` — embedder sugar over the runtime's
 /// installed [`Plugins`] extension.
@@ -24,70 +21,19 @@ pub trait PluginLoader {
     /// failure.
     fn load(
         &self, package: &str, from: Origin, pin: Option<&str>,
-    ) -> impl Future<Output = Result<Plugin, Error>> + Send;
+    ) -> impl Future<Output = Result<Plugin, LoadError>> + Send;
 }
 
 impl<B: Clone + Send + Sync + 'static> PluginLoader for Runtime<B> {
     fn load(
         &self, package: &str, from: Origin, pin: Option<&str>,
-    ) -> impl Future<Output = Result<Plugin, Error>> + Send {
+    ) -> impl Future<Output = Result<Plugin, LoadError>> + Send {
         let plugins = self.extensions().get::<Plugins>();
         async move {
             match plugins {
                 Some(plugins) => plugins.load(package, from, pin).await,
-                None => Err(Error::Internal(format!(
-                    "this deployment has no plugins; compile one in (`plugins: {{ locations: [...] }}`) to load `{package}`"
-                ))),
+                None => Err(LoadError::no_plugins(package)),
             }
-        }
-    }
-}
-
-/// The privileged runtime half the loader drives — the registry record and
-/// the admission seam — erased of the deployment's backend type so
-/// [`Plugins`] can live in the runtime's extensions.
-trait Admission: Send + Sync + 'static {
-    /// The registration state of `id`, with any recorded digest.
-    fn registration(&self, id: &GuestId) -> Result<Registration, Error>;
-
-    /// Admit raw wasm bytes as the late guest `id`.
-    fn admit(&self, id: GuestId, bytes: Vec<u8>) -> BoxFuture<'static, Result<(), AdmitError>>;
-}
-
-// Weak: a strong handle would cycle through the extension.
-impl<B: Clone + Send + Sync + 'static> Admission for WeakRuntime<B> {
-    fn registration(&self, id: &GuestId) -> Result<Registration, Error> {
-        let runtime = self
-            .upgrade()
-            .ok_or_else(|| Error::Internal("the runtime has shut down".to_owned()))?;
-        Ok(runtime.registry().get(id).map_or(Registration::Absent, |guest| {
-            Registration::Active(guest.digest().map(str::to_owned))
-        }))
-    }
-
-    fn admit(&self, id: GuestId, bytes: Vec<u8>) -> BoxFuture<'static, Result<(), AdmitError>> {
-        let weak = self.clone();
-        async move {
-            let Some(runtime) = weak.upgrade() else {
-                return Err(AdmitError::Internal("the runtime has shut down".to_owned()));
-            };
-            runtime.admit(id, bytes).await
-        }
-        .boxed()
-    }
-}
-
-enum Registration {
-    Absent,
-    Active(Option<String>),
-}
-
-impl Registration {
-    /// The recorded digest, when active with one.
-    fn digest(self) -> Option<String> {
-        match self {
-            Self::Active(digest) => digest,
-            Self::Absent => None,
         }
     }
 }
@@ -128,44 +74,6 @@ impl Plugins {
         Ok(())
     }
 
-    /// Install the loader capability over the deployment's declared
-    /// locations ([`Runtime::plugin_locations`]): every path entry folds, in
-    /// declaration order, into one [`PathMounts`] filling the path slot, the
-    /// registry entry into a cacheless [`RegistryClient`] filling the
-    /// registry slot. A deployment declaring no locations installs nothing,
-    /// so a load refuses as loader misconfiguration.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if a path location cannot be opened or the capability
-    /// is already installed.
-    pub fn install_declared<B>(runtime: &Runtime<B>) -> anyhow::Result<()>
-    where
-        B: Clone + Send + Sync + 'static,
-    {
-        let locations = runtime.plugin_locations();
-        if locations.is_empty() {
-            return Ok(());
-        }
-        let paths: Vec<(&str, &std::path::Path)> = locations
-            .iter()
-            .filter_map(|location| match location {
-                Location::Path { name, path } => Some((name.as_str(), path.as_path())),
-                Location::Registry { .. } => None,
-            })
-            .collect();
-        let path: Option<Arc<dyn PathSource>> =
-            if paths.is_empty() { None } else { Some(Arc::new(PathMounts::new(paths)?)) };
-        let registry: Option<Arc<dyn RegistrySource>> =
-            locations.iter().find_map(|location| match location {
-                Location::Registry { registry } => {
-                    Some(Arc::new(RegistryClient::new(registry.as_str())) as Arc<dyn RegistrySource>)
-                }
-                Location::Path { .. } => None,
-            });
-        Self::install(runtime, registry, path)
-    }
-
     /// Acquire, pin-check, and admit `package` through the runtime's
     /// admission seam. Idempotent on (package, digest).
     ///
@@ -176,8 +84,8 @@ impl Plugins {
     /// registration failure.
     pub async fn load(
         &self, package: &str, from: Origin, pin: Option<&str>,
-    ) -> Result<Plugin, Error> {
-        let pin = pin.map(canonicalize).transpose().map_err(Error::Refused)?;
+    ) -> Result<Plugin, LoadError> {
+        let pin = pin.map(canonicalize).transpose().map_err(LoadError::Refused)?;
 
         let id = GuestId::from(package);
         if let Registration::Active(recorded) = self.admission.registration(&id)? {
@@ -189,7 +97,7 @@ impl Plugins {
         // The operator's pin binds name to bytes before any validation work.
         let hash = sha256_digest(&bytes);
         if pin.is_some_and(|pin| pin != hash) {
-            return Err(Error::Refused(format!(
+            return Err(LoadError::Refused(format!(
                 "resolved package `{package}` digest {hash} does not match the pinned digest"
             )));
         }
@@ -210,18 +118,18 @@ impl Plugins {
         }
     }
 
-    async fn acquire(&self, package: &str, from: &Origin) -> Result<Vec<u8>, Error> {
+    async fn acquire(&self, package: &str, from: &Origin) -> Result<Vec<u8>, LoadError> {
         match from {
             Origin::Registry(endpoint) => match &self.registry {
                 Some(registry) => registry.acquire(package, endpoint.as_deref()).await,
-                None => Err(Error::Refused(format!(
+                None => Err(LoadError::Refused(format!(
                     "this deployment's locations serve no registry; loading `{package}` needs \
                      a `{{ registry: ... }}` entry"
                 ))),
             },
             Origin::Path(path) => match &self.path {
                 Some(paths) => paths.acquire(path).await,
-                None => Err(Error::Refused(format!(
+                None => Err(LoadError::Refused(format!(
                     "this deployment's locations serve no paths; loading `{package}` from \
                      `{path}` needs a `{{ name: ..., path: ... }}` entry"
                 ))),
@@ -248,13 +156,13 @@ fn canonicalize(digest: &str) -> Result<String, String> {
 /// refuse: an active identity never re-binds.
 fn attest_active(
     package: &str, id: GuestId, recorded: Option<&str>, wanted: Option<&str>,
-) -> Result<Plugin, Error> {
+) -> Result<Plugin, LoadError> {
     match recorded {
         Some(digest) if wanted == Some(digest) => Ok(Plugin {
             id,
             digest: Arc::from(digest),
         }),
-        _ => Err(Error::AlreadyActive(format!("`{package}` is already active"))),
+        _ => Err(LoadError::AlreadyActive(format!("`{package}` is already active"))),
     }
 }
 
@@ -276,17 +184,5 @@ impl Plugin {
     #[must_use]
     pub fn digest(&self) -> &str {
         &self.digest
-    }
-}
-
-impl From<AdmitError> for Error {
-    fn from(error: AdmitError) -> Self {
-        match error {
-            AdmitError::ArtifactRefused(reason) | AdmitError::SeamMissing(reason) => {
-                Self::Refused(reason)
-            }
-            AdmitError::AlreadyRegistered(reason) => Self::AlreadyActive(reason),
-            AdmitError::Internal(reason) => Self::Internal(reason),
-        }
     }
 }

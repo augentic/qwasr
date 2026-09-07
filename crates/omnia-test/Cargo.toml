@@ -38,6 +38,7 @@ host = [
     "dep:anyhow",
     "dep:futures",
     "dep:omnia",
+    "omnia/plugin",
     "dep:omnia-wasi-blobstore",
     "dep:omnia-wasi-config",
     "dep:omnia-wasi-docstore",

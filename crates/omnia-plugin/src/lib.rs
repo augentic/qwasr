@@ -24,25 +24,20 @@
 //! or on `omnia-core` directly; those are dependencies for building another
 //! capability crate.
 
+mod admission;
+mod declared;
+mod error;
 mod host;
 mod loader;
 mod path;
 mod registry;
+mod source;
 mod store;
 
-pub use self::host::{Error as LoadError, WasiPlugins, WasiPluginsCtxView};
+pub use self::error::LoadError;
+pub use self::host::{WasiPlugins, WasiPluginsCtxView};
 pub use self::loader::{Plugin, PluginLoader, Plugins};
-pub use self::path::{PathMounts, PathSource};
-pub use self::registry::{RegistryClient, RegistrySource};
+pub use self::path::PathMounts;
+pub use self::registry::RegistryClient;
+pub use self::source::{Origin, PathSource, RegistrySource};
 pub use self::store::{ContentStore, NoStore, ReleaseStore};
-
-/// Where one load's component bytes come from, resolved against the
-/// deployment's declared [`Location`](omnia_core::Location)s — the host mirror
-/// of the `omnia:plugins/loader` `location` variant.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Origin {
-    /// A package registry; `None` selects the acquirer's default.
-    Registry(Option<String>),
-    /// A location-relative component path.
-    Path(String),
-}

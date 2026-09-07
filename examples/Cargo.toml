@@ -33,6 +33,9 @@ http-body-util.workspace = true
 hyper = { workspace = true, features = ["http1", "server"] }
 hyper-util = { workspace = true, features = ["tokio"] }
 reqwest.workspace = true
+# The smoke runner's own `reqwest::Client` needs a process crypto provider;
+# `ring` is already in the graph through `omnia-wasi-http`.
+rustls.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 axum = { workspace = true, features = ["macros", "query"] }

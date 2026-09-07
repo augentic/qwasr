@@ -166,6 +166,16 @@ impl Manifest {
                 registries.join(", ")
             );
         }
+        // A config file can declare locations the compiled runtime cannot
+        // serve; refuse up front rather than silently never installing them.
+        #[cfg(not(feature = "plugin"))]
+        if !self.locations.is_empty() {
+            bail!(
+                "this runtime was built without the `plugin` feature; remove the [[location]] \
+                 entries or enable the feature on the `omnia` dependency (`features = \
+                 [\"plugin\"]`)"
+            );
+        }
         Ok(())
     }
 
@@ -645,7 +655,13 @@ mod tests {
             manifest.locations,
             [Location::path(".", "/deploy/app/adapters"), Location::registry("ghcr.io"),]
         );
+        #[cfg(feature = "plugin")]
         manifest.validate(false).expect("one registry is allowed");
+        #[cfg(not(feature = "plugin"))]
+        {
+            let error = manifest.validate(false).expect_err("locations need the plugin feature");
+            assert!(error.to_string().contains("without the `plugin` feature"), "{error}");
+        }
     }
 
     #[test]

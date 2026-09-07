@@ -34,10 +34,13 @@ pub struct Config {
     #[allow(clippy::struct_field_names)]
     pub config_file: Option<Expr>,
     pub manifest: ManifestSpec,
-    /// Whether a `plugins:` block was declared — links the `WasiPlugins`
-    /// loader host and installs the declared locations even when the block
-    /// carries no interfaces.
-    pub plugins_declared: bool,
+    /// Whether the deployment declares plugin locations — inline through the
+    /// `plugins:` block's `locations:` list, or in the config file when a
+    /// bare `plugins:` block accompanies `config:`. Either links the
+    /// `WasiPlugins` loader host and installs the locations, which requires
+    /// `omnia`'s `plugin` feature; an interfaces-only block never references
+    /// the loader.
+    pub link_loader: bool,
 }
 
 /// One `Host: Backend` wiring from the `hosts: { ... }` block, optionally
@@ -125,7 +128,7 @@ impl Parse for Config {
         let mut host_entries = Vec::new();
         let mut config_file = None;
         let mut manifest = ManifestSpec::default();
-        let mut plugins_declared = false;
+        let mut plugins_span: Option<Span> = None;
         let mut config_span: Option<Span> = None;
         let mut inline_span: Option<Span> = None;
 
@@ -148,10 +151,11 @@ impl Parse for Config {
                     config_span = Some(span);
                 }
                 OptValue::Plugins(p) => {
-                    plugins_declared = true;
+                    plugins_span = Some(span);
                     // Interfaces and locations are both manifest data, so
                     // either conflicts with `config:`; a bare `plugins: {}`
-                    // only opts into the loader host.
+                    // is only meaningful beside `config:`, where it opts into
+                    // the loader over the TOML's `[[location]]` entries.
                     if !p.interfaces.is_empty() || !p.locations.is_empty() {
                         inline_span.get_or_insert(span);
                     }
@@ -169,12 +173,32 @@ impl Parse for Config {
             }
         }
 
+        // A bare `plugins: {}` declares nothing inline and, without `config:`,
+        // has no TOML to defer to — it would expand to nothing at all.
+        if let Some(span) = plugins_span
+            && manifest.plugins.is_empty()
+            && manifest.locations.is_empty()
+            && config_file.is_none()
+        {
+            return Err(syn::Error::new(
+                span,
+                "`plugins: {}` declares nothing; add `interfaces:` or `locations:`, or pair it \
+                 with `config:` to install the config file's `[[location]]` entries",
+            ));
+        }
+
+        // Only declared locations opt into the loader: inline ones
+        // (`PluginsSpec::validate` already refuses an empty list), or the
+        // config file's when a `plugins:` block accompanies `config:`. An
+        // interfaces-only block is plain manifest data.
+        let link_loader =
+            !manifest.locations.is_empty() || (plugins_span.is_some() && config_file.is_some());
         let config = Self {
             mode,
             host_entries,
             config_file,
             manifest,
-            plugins_declared,
+            link_loader,
         };
         config.validate(&KeySpans {
             config: config_span,

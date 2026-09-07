@@ -17,11 +17,7 @@ mod runtime {
         B: Clone + Send + Sync + 'static,
     {
         fn link(deployment: &mut omnia::Deployment<omnia::StoreCtx<B>>) -> Result<()> {
-            deployment.host::<omnia::WasiPlugins, B>()?;
             Ok(())
-        }
-        fn extend(runtime: &omnia::Runtime<B>) -> Result<()> {
-            omnia::Plugins::install_declared(runtime)
         }
         async fn serve(runtime: &omnia::Runtime<B>) -> Result<()> {
             let servers: Vec<future::BoxFuture<'_, Result<()>>> = vec![];

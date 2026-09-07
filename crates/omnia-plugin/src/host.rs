@@ -20,10 +20,11 @@ use std::sync::Arc;
 use omnia_core::{HasExtensions, Host, Server};
 use wasmtime::component::{Accessor, HasData, Linker};
 
-pub use self::generated::Error;
+use self::generated::Error;
 use self::generated::omnia::plugins::loader;
-use crate::Origin;
+use crate::error::LoadError;
 use crate::loader::Plugins;
+use crate::source::Origin;
 
 /// Host-side service for `omnia:plugins` — the loader capability this crate
 /// implements over the runtime's admission seam.
@@ -63,6 +64,17 @@ impl From<loader::Location> for Origin {
     }
 }
 
+impl From<LoadError> for Error {
+    fn from(error: LoadError) -> Self {
+        match error {
+            LoadError::Refused(detail) => Self::Refused(detail),
+            LoadError::Unavailable(detail) => Self::Unavailable(detail),
+            LoadError::AlreadyActive(detail) => Self::AlreadyActive(detail),
+            LoadError::Internal(detail) => Self::Internal(detail),
+        }
+    }
+}
+
 impl<T> loader::HostWithStore<T> for WasiPlugins {
     async fn load(
         accessor: &Accessor<T, Self>, package: String, from: loader::Location,
@@ -70,9 +82,7 @@ impl<T> loader::HostWithStore<T> for WasiPlugins {
     ) -> Result<loader::Plugin, Error> {
         let plugins = accessor
             .with(|mut store| store.get().plugins)
-            .ok_or_else(|| Error::Internal(format!(
-                "this deployment has no plugins; compile one in (`plugins: {{ locations: [...] }}`) to load `{package}`"
-            )))?;
+            .ok_or_else(|| LoadError::no_plugins(&package))?;
         let plugin = plugins.load(&package, from.into(), digest.as_deref()).await?;
         Ok(loader::Plugin {
             id: plugin.id().to_string(),
