@@ -172,7 +172,8 @@ impl Manifest {
         if !self.locations.is_empty() {
             bail!(
                 "this runtime was built without the `plugin` feature; remove the [[location]] \
-                 entries or enable `omnia/plugin`"
+                 entries or enable the feature on the `omnia` dependency (`features = \
+                 [\"plugin\"]`)"
             );
         }
         Ok(())
