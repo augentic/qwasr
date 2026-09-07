@@ -162,6 +162,27 @@
   `omnia::Parser` are unchanged, as is everything the `runtime!` macro emits.
   A direct-command binary built with `--no-default-features` now links no
   `clap`.
+- The `omnia:plugins/loader` capability (`omnia-plugin`) sits behind a new
+  non-default `plugin` feature on the `omnia` facade
+  (`plugin = ["dep:omnia-plugin"]`), mirroring `cli`. The facade paths
+  (`omnia::WasiPlugins`, `omnia::Plugins`, `omnia::PathMounts`,
+  `omnia::LoadError`, …) and the `runtime!` syntax are unchanged; a
+  deployment that declares `plugins: { locations: [...] }`, or a bare
+  `plugins: {}` beside `config:` for the TOML's `[[location]]` entries,
+  must enable it (`omnia = { version = "...", features = ["plugin"] }`) or
+  the expansion fails to compile naming `omnia::WasiPlugins`. A default
+  build carries no loader and no HTTP/OCI registry stack (`wasm-pkg-client`
+  and its ~120 transitive crates are gone), and refuses a manifest with
+  `[[location]]` entries at startup. The macro links the loader host and
+  emits `Wiring::extend` only for those two shapes: an interfaces-only
+  `plugins: { interfaces: [...] }` block no longer links a loader that
+  refused every load, so a guest importing `omnia:plugins/loader` in such a
+  deployment now fails at instantiation rather than per load; a bare
+  `plugins: {}` without `config:` is now a compile error instead of a
+  silent no-op. `omnia::LoadError` is owned by `omnia-plugin` rather than
+  being the `bindgen!`-generated WIT error: same variants, `Display`, and
+  `Clone`/`Debug`/`PartialEq`/`Eq`/`Error`, minus wasmtime's
+  `Lift`/`Lower`/`ComponentType` impls.
 - Every `omnia-guest` capability trait is implemented for `Arc<T>`, `&T`,
   and `Box<T>` where `T` implements it, forwarding on both targets, so a
   provider field may hold a double behind a shared handle and a
